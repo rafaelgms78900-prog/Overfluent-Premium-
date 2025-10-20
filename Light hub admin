@@ -1,0 +1,539 @@
+-- ServiÃ§os
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local TextChatService = game:GetService("TextChatService")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+
+-- Sistema de Data/Hora
+local function getCurrentTimestamp()
+    return os.time()
+end
+
+local function parseDateTime(dateString)
+    -- Formato: "dd/mm/aaaa hh:mm"
+    local day, month, year, hour, minute = dateString:match("(%d+)/(%d+)/(%d+) (%d+):(%d+)")
+    if day and month and year and hour and minute then
+        return os.time({
+            day = tonumber(day),
+            month = tonumber(month),
+            year = tonumber(year),
+            hour = tonumber(hour),
+            min = tonumber(minute),
+            sec = 0
+        })
+    end
+    return nil
+end
+
+-- Sistema de Whitelist com ExpiraÃ§Ã£o
+local WhitelistData = {
+    -- Donos (sem expiraÃ§Ã£o)
+    ["hiro0881"] = {type = "Dono", expires = nil},
+    ["drakeee777"] = {type = "Dono", expires = nil},
+    
+    -- UsuÃ¡rios ADM com expiraÃ§Ã£o
+    ["hiro0881"] = {type = "Dono", expires = parseDateTime("15/12/2030 23:59")},
+    ["cartolahub7"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("15/12/2030 23:59")},
+    ["ppyszt"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("7/01/2026 18:30")},
+    ["pedro_roneido"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("10/01/2030 12:00")},
+    ["pedro_roneido20"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("10/01/2030 12:00")},
+    ["ixi362"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("05/01/2030 15:45")},
+    ["jifhgiu"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("25/12/2030 20:00")},
+    ["piloto158d"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("30/12/2030 14:20")},
+    ["rafaelgms67901"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("25/12/2030 20:00")},
+    ["ilu1_22"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("08/01/2030 10:30")},
+    ["xmarcelo_27262"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("12/01/2030 16:15")},
+    ["ryansididd"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("03/01/2030 09:00")},
+    ["redz_hub99975"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("28/12/2030 22:45")},
+    ["teteu0902201mc"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("15/01/2030 11:30")},
+    ["amongus23445844sad"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("18/12/2030 19:20")},
+    ["ttyyryjuh"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("22/12/2030 13:10")},
+    ["kevin_oliverra10"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("07/01/2030 17:40")},
+    ["drakeee777"] = {type = "dono", expires = parseDateTime("29/12/2030 21:15")},
+    ["eduard0k0"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("14/01/2030 08:50")},
+    ["gh707080s"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("31/12/2030 23:59")},
+    ["luroblox1262"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("06/01/2030 14:25")},
+    ["bonasamigo"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("19/10/2030 14:30")},
+    ["manopp83"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("25/10/2025 18:40")},
+    ["zack_89901"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("25/10/2025 18:40")},
+}
+
+-- FunÃ§Ã£o para verificar se usuÃ¡rio estÃ¡ na whitelist e nÃ£o expirou
+local function isUserWhitelisted(username)
+    local userData = WhitelistData[username:lower()]
+    if not userData then
+        return false, "NÃ£o estÃ¡ na whitelist"
+    end
+    
+    -- Verificar expiraÃ§Ã£o
+    if userData.expires then
+        local currentTime = getCurrentTimestamp()
+        if currentTime > userData.expires then
+            return false, "Whitelist expirada em " .. os.date("%d/%m/%Y %H:%M", userData.expires)
+        end
+    end
+    
+    return true, userData.type
+end
+
+-- VERIFICAÃ‡ÃƒO INICIAL - Se nÃ£o estiver na whitelist ou expirou, kicka imediatamente
+local function verifyWhitelistOnStart()
+    local username = LocalPlayer.Name:lower()
+    local isWhitelisted, reason = isUserWhitelisted(username)
+    
+    if not isWhitelisted then
+        -- Espera um pouco para carregar e depois kicka
+        task.wait(2)
+        if reason:find("expirada") then
+            LocalPlayer:Kick("âŒ SUA WHITELIST EXPIROU!\n\nData de expiraÃ§Ã£o: " .. reason:match("expirada em (.+)"))
+        else
+            LocalPlayer:Kick("âŒ VOCÃŠ NÃƒO ESTÃ NA WHITELIST!\n\nEntre em contato com o desenvolvedor.")
+        end
+        return false
+    end
+    
+    return true
+end
+
+-- Executa a verificaÃ§Ã£o inicial
+if not verifyWhitelistOnStart() then
+    return -- Para a execuÃ§Ã£o do script se nÃ£o passou na whitelist
+end
+
+-- FunÃ§Ã£o para adicionar usuÃ¡rio Ã  whitelist
+local function addToWhitelist(username, userType, expirationDate)
+    local expiresTimestamp = nil
+    if expirationDate and expirationDate ~= "" then
+        expiresTimestamp = parseDateTime(expirationDate)
+        if not expiresTimestamp then
+            return false, "Formato de data invÃ¡lido. Use: dd/mm/aaaa hh:mm"
+        end
+    end
+    
+    WhitelistData[username:lower()] = {
+        type = userType,
+        expires = expiresTimestamp
+    }
+    
+    return true, "UsuÃ¡rio adicionado com sucesso"
+end
+
+-- FunÃ§Ã£o para remover usuÃ¡rio da whitelist
+local function removeFromWhitelist(username)
+    if WhitelistData[username:lower()] then
+        WhitelistData[username:lower()] = nil
+        return true, "UsuÃ¡rio removido da whitelist"
+    end
+    return false, "UsuÃ¡rio nÃ£o encontrado na whitelist"
+end
+
+-- FunÃ§Ã£o para verificar expiraÃ§Ãµes
+local function checkExpirations()
+    local currentTime = getCurrentTimestamp()
+    local expiredUsers = {}
+    
+    for username, userData in pairs(WhitelistData) do
+        if userData.expires and currentTime > userData.expires then
+            table.insert(expiredUsers, {
+                username = username,
+                expiredAt = os.date("%d/%m/%Y %H:%M", userData.expires)
+            })
+        end
+    end
+    
+    return expiredUsers
+end
+
+-- Listas separadas para compatibilidade (apenas usuÃ¡rios nÃ£o expirados)
+local Donos = {}
+local SpecialUsers = {}
+
+-- Preencher listas compatÃ­veis
+for username, userData in pairs(WhitelistData) do
+    local isWhitelisted, reason = isUserWhitelisted(username)
+    if isWhitelisted then
+        if userData.type == "Dono" then
+            Donos[username] = true
+        end
+        SpecialUsers[username] = userData.type
+    end
+end
+
+-- Sistema de Tags (mantido igual)
+local function createSpecialTag(player, tagText)
+    local char = player.Character  
+    if not char then return end  
+    local head = char:FindFirstChild("Head")  
+    if not head then return end  
+    local old = head:FindFirstChild("SpecialTag")  
+    if old then old:Destroy() end  
+    
+    local billboardGui = Instance.new("BillboardGui")  
+    billboardGui.Name = "SpecialTag"  
+    billboardGui.Size = UDim2.new(0, 200, 0, 50)  
+    billboardGui.StudsOffset = Vector3.new(0, 3, 0)  
+    billboardGui.Adornee = head  
+    billboardGui.AlwaysOnTop = true  
+    billboardGui.Parent = head  
+    
+    local frame = Instance.new("Frame")  
+    frame.Size = UDim2.new(1, 0, 1, 0)  
+    frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)  
+    frame.BackgroundTransparency = 0.5  
+    frame.BorderSizePixel = 0  
+    frame.Parent = billboardGui  
+    
+    local corner = Instance.new("UICorner")  
+    corner.CornerRadius = UDim.new(0, 12)  
+    corner.Parent = frame  
+    
+    local textLabel = Instance.new("TextLabel")  
+    textLabel.Size = UDim2.new(1, 0, 1, 0)  
+    textLabel.BackgroundTransparency = 1  
+    textLabel.Text = tagText  
+    textLabel.TextColor3 = Color3.fromRGB(0, 170, 255)  
+    textLabel.TextScaled = true  
+    textLabel.Font = Enum.Font.GothamBold  
+    textLabel.TextStrokeTransparency = 0.5  
+    textLabel.Parent = frame
+end
+
+local function applyTag(player)
+    local isWhitelisted, tagType = isUserWhitelisted(player.Name:lower())
+    if isWhitelisted then  
+        player.CharacterAdded:Connect(function()  
+            task.wait(1)  
+            createSpecialTag(player, tagType)  
+        end)  
+        if player.Character then  
+            task.wait(1)  
+            createSpecialTag(player, tagType)  
+        end  
+    end
+end
+
+-- Aplicar tags nos jogadores
+for _, p in ipairs(Players:GetPlayers()) do
+    applyTag(p)
+end
+
+Players.PlayerAdded:Connect(function(p)
+    applyTag(p)
+end)
+
+-- Sistema de comandos para todos os usuÃ¡rios do hub
+local playerOriginalSpeed = {}
+local jaulas = {}
+local jailConnections = {}
+
+-- FunÃ§Ã£o para crashar o jogador
+local function CrashPlayer(targetName)
+    local playerName = LocalPlayer.Name:lower()
+    
+    -- Verifica se Ã© para crashar a si mesmo
+    local isSelfTarget = not targetName or targetName:lower() == playerName
+    
+    if isSelfTarget then
+        -- Crash local (para si mesmo)
+        while true do
+            for i = 1, 100 do
+                local part = Instance.new("Part")
+                part.Parent = workspace
+                part.Size = Vector3.new(10, 10, 10)
+                part.Position = Vector3.new(0, i * 5, 0)
+            end
+        end
+    else
+        -- Para outros jogadores, envia pelo chat
+        local msg = ";crash " .. targetName
+        local canal = TextChatService.TextChannels:FindFirstChild("RBXGeneral") or TextChatService.TextChannels:GetChildren()[1]
+        if canal then
+            canal:SendAsync(msg)
+        end
+    end
+end
+
+-- FunÃ§Ã£o para processar comandos locais (executados pelo prÃ³prio usuÃ¡rio)
+local function ExecutarComandoLocal(comando, targetName)
+    local playerName = LocalPlayer.Name:lower()
+    local character = LocalPlayer.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+    -- Verifica se o comando Ã© para o prÃ³prio jogador  
+    local isSelfTarget = not targetName or targetName:lower() == playerName  
+    
+    -- Kick  
+    if comando == "kick" and isSelfTarget then  
+        LocalPlayer:Kick("VocÃª foi removido pelo Painel ADM do Light hub.")  
+        return  
+    end  
+
+    -- Kill  
+    if comando == "kill" and isSelfTarget then  
+        if character then   
+            character:BreakJoints()   
+        end  
+        return  
+    end  
+
+    -- KillPlus  
+    if comando == "killplus" and isSelfTarget then  
+        if character then  
+            character:BreakJoints()  
+            local root = character:FindFirstChild("HumanoidRootPart")  
+            if root then  
+                for i = 1, 10 do  
+                    local part = Instance.new("Part")  
+                    part.Size = Vector3.new(10,10,10)  
+                    part.Anchored = false  
+                    part.CanCollide = false  
+                    part.Material = Enum.Material.Neon  
+                    part.BrickColor = BrickColor.Random()  
+                    part.CFrame = root.CFrame  
+                    part.Parent = workspace  
+                    local bv = Instance.new("BodyVelocity")  
+                    bv.Velocity = Vector3.new(math.random(-50,50), math.random(20,80), math.random(-50,50))  
+                    bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)  
+                    bv.Parent = part  
+                    game.Debris:AddItem(part, 3)  
+                end  
+            end  
+        end  
+        return  
+    end  
+
+    -- Crash
+    if comando == "crash" and isSelfTarget then
+        CrashPlayer(playerName)
+        return
+    end
+
+    -- Fling  
+    if comando == "fling" and isSelfTarget then  
+        if character then  
+            local root = character:FindFirstChild("HumanoidRootPart")  
+            if root then  
+                local targetCFrame = CFrame.new(50000, 5000000, 3972823)  
+                local tweenInfo = TweenInfo.new(2, Enum.EasingStyle.Linear)  
+                local tween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})  
+                tween:Play()  
+            end  
+        end  
+        return  
+    end  
+
+    -- Freeze  
+    if comando == "freeze" and isSelfTarget then  
+        if humanoid then  
+            playerOriginalSpeed[playerName] = humanoid.WalkSpeed  
+            humanoid.WalkSpeed = 0  
+        end  
+        return  
+    end  
+
+    -- Unfreeze  
+    if comando == "unfreeze" and isSelfTarget then  
+        if humanoid then  
+            humanoid.WalkSpeed = playerOriginalSpeed[playerName] or 16  
+            playerOriginalSpeed[playerName] = nil  
+        end  
+        return  
+    end  
+
+    -- Jail  
+    if comando == "jail" and isSelfTarget then  
+        if character then  
+            local root = character:FindFirstChild("HumanoidRootPart")  
+            local humanoid = character:FindFirstChildOfClass("Humanoid")  
+            if root and humanoid then  
+                playerOriginalSpeed[playerName] = humanoid.WalkSpeed  
+                humanoid.WalkSpeed = 0  
+
+                local sizeX,sizeY,sizeZ = 10,10,10  
+                local pos = root.Position  
+                jaulas[playerName] = {}  
+                  
+                local function criarParte(cframe,size)  
+                    local p = Instance.new("Part")  
+                    p.Size = size  
+                    p.Anchored = true  
+                    p.CanCollide = true  
+                    p.Transparency = 0.5  
+                    p.Color = Color3.fromRGB(255,140,0)  
+                    p.CFrame = cframe  
+                    p.Parent = workspace  
+                    table.insert(jaulas[playerName], p)  
+                end  
+                  
+                criarParte(CFrame.new(pos+Vector3.new(sizeX/2,0,0)),Vector3.new(1,sizeY,sizeZ))  
+                criarParte(CFrame.new(pos+Vector3.new(-sizeX/2,0,0)),Vector3.new(1,sizeY,sizeZ))  
+                criarParte(CFrame.new(pos+Vector3.new(0,0,sizeZ/2)),Vector3.new(sizeX,sizeY,1))  
+                criarParte(CFrame.new(pos+Vector3.new(0,0,-sizeZ/2)),Vector3.new(sizeX,sizeY,1))  
+                criarParte(CFrame.new(pos+Vector3.new(0,sizeY/2,0)),Vector3.new(sizeX,1,sizeZ))  
+                criarParte(CFrame.new(pos+Vector3.new(0,-sizeY/2,0)),Vector3.new(sizeX,1,sizeZ))  
+
+                if jailConnections[playerName] then  
+                    jailConnections[playerName]:Disconnect()  
+                end  
+                  
+                jailConnections[playerName] = RunService.Heartbeat:Connect(function()  
+                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then  
+                        local hrp = LocalPlayer.Character.HumanoidRootPart  
+                        local center = pos + Vector3.new(0,2,0)  
+                        if (hrp.Position - center).Magnitude > 6 then  
+                            hrp.CFrame = CFrame.new(center)  
+                        end  
+                    end  
+                end)  
+            end  
+        end  
+        return  
+    end  
+
+    -- Unjail  
+    if comando == "unjail" and isSelfTarget then  
+        if character then  
+            local humanoid = character:FindFirstChildOfClass("Humanoid")  
+            if humanoid then  
+                humanoid.WalkSpeed = playerOriginalSpeed[playerName] or 16  
+                playerOriginalSpeed[playerName] = nil  
+            end  
+
+            if jaulas[playerName] then  
+                for _, p in ipairs(jaulas[playerName]) do  
+                    p:Destroy()  
+                end  
+                jaulas[playerName] = nil  
+            end  
+
+            if jailConnections[playerName] then  
+                jailConnections[playerName]:Disconnect()  
+                jailConnections[playerName] = nil  
+            end  
+        end  
+        return  
+    end  
+
+    -- Bring (para outros jogadores)  
+    if comando == "bring" and targetName and targetName:lower() ~= playerName then  
+        local targetPlayer = Players:FindFirstChild(targetName)  
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then  
+            local root = character and character:FindFirstChild("HumanoidRootPart")  
+            if root then  
+                root.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0,0,-3)  
+            end  
+        end  
+        return  
+    end
+end
+
+-- FunÃ§Ã£o para enviar comandos pelo chat
+local function EnviarComando(comando, playerName)
+    local msg = ";"..comando
+    if playerName then
+        msg = msg.." "..playerName
+    end
+
+    -- Executa localmente primeiro  
+    ExecutarComandoLocal(comando, playerName)  
+    
+    -- Depois envia pelo chat  
+    local canal = TextChatService.TextChannels:FindFirstChild("RBXGeneral") or TextChatService.TextChannels:GetChildren()[1]  
+    if canal then  
+        canal:SendAsync(msg)  
+    else  
+        warn("Nenhum canal encontrado")  
+    end
+end
+
+-- FunÃ§Ã£o para processar comandos recebidos do chat
+local function ProcessarComandoChat(msgText, autor)
+    local playerName = LocalPlayer.Name:lower()
+
+    -- Verifica comandos direcionados a este jogador  
+    for _, cmd in ipairs({"kick", "kill", "killplus", "crash", "fling", "freeze", "unfreeze", "jail", "unjail"}) do  
+        local pattern = ";("..cmd..")%s+"..playerName  
+        local comandoEncontrado = msgText:match(pattern)  
+        if comandoEncontrado then  
+            ExecutarComandoLocal(comandoEncontrado, playerName)  
+            return  
+        end  
+    end  
+    
+    -- Verifica comando bring  
+    local bringPattern = ";(bring)%s+(%w+)"  
+    local comando, alvo = msgText:match(bringPattern)  
+    if comando == "bring" and alvo and alvo:lower() == playerName then  
+        ExecutarComandoLocal("bring", autor) -- Inverte para trazer o autor atÃ© mim  
+        return  
+    end  
+    
+    -- Verifica comando verifique  
+    if msgText:match(";verifique") then  
+        pcall(function()  
+            local randomNumber = math.random(1000, 9999)  
+            local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")  
+            if channel then  
+                channel:SendAsync("LightHub_###"..randomNumber)  
+            end  
+        end)  
+        return  
+    end
+end
+
+-- Se for dono, ativa o painel admin completo
+local isWhitelisted, userType = isUserWhitelisted(LocalPlayer.Name:lower())
+if isWhitelisted then
+    -- Carrega a biblioteca WindUI
+    local WindUISuccess, WindUI = pcall(function()
+        return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+    end)
+
+    if not WindUISuccess then  
+        warn("Erro ao carregar WindUI")  
+        return  
+    end  
+
+    local Window = WindUI:CreateWindow({  
+        Title = "LightAdmin - " .. userType,
+        Icon = "computer",  
+        Author = "by: hiro",  
+        Folder = "PainelLight",  
+        Size = UDim2.fromOffset(400, 300),  
+        Transparent = true,  
+        Theme = "Light",  
+        Resizable = false,  
+        SideBarWidth = 200,  
+        BackgroundImageTransparency = 0.42,  
+        HideSearchBar = true,  
+        ScrollBarEnabled = true,  
+    })  
+
+    -- Aba Comandos  
+    local TabComandos = Window:Tab({ Title = "Comandos", Icon = "terminal", Locked = false })  
+    local SectionComandos = TabComandos:Section({ Title = "Admin", Icon = "user-cog", Opened = true })  
+
+    local TargetName  
+    local function getPlayersList()  
+        local t = {}  
+        for _, p in ipairs(Players:GetPlayers()) do  
+            if p ~= LocalPlayer then  
+                table.insert(t, p.Name)  
+            end  
+        end  
+        return t  
+    end  
+
+    local Dropdown = SectionComandos:Dropdown({  
+        Title = "Selecionar Jogador",  
+        Values = getPlayersList(),  
+        Value = "",  
+        Callback = function(option)  
+            TargetName = option  
+        end  
+    })  
+
+    Players.PlayerAdded:Connect(function()  
+        Dropdown:SetValues(get
