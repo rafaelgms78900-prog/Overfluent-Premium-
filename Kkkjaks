@@ -1,0 +1,514 @@
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+ScreenGui.Name = "DemonHubLoading"
+ScreenGui.Parent = game:GetService("CoreGui")
+
+-- Fundo com imagem cobrindo tudo
+local Background = Instance.new("ImageLabel")
+Background.Size = UDim2.new(1, 0, 1, 0)
+Background.Position = UDim2.new(0, 0, 0, 0)
+Background.BackgroundTransparency = 1
+Background.BorderSizePixel = 0
+Background.Image = "rbxassetid://109497583637459"
+Background.ScaleType = Enum.ScaleType.Crop
+Background.Parent = ScreenGui
+
+-- Tocar som no início
+local Sound = Instance.new("Sound")
+Sound.SoundId = "rbxassetid://1836166569"
+Sound.Volume = 1
+Sound.Looped = false
+Sound.PlayOnRemove = false
+Sound.Parent = Background
+Sound:Play()
+
+-- Container da barra de carregamento (mais embaixo)
+local LoadingFrame = Instance.new("Frame")
+LoadingFrame.Size = UDim2.new(0.5, 0, 0, 30)
+LoadingFrame.Position = UDim2.new(0.25, 0, 0.85, 0) -- mais embaixo
+LoadingFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+LoadingFrame.BackgroundTransparency = 0.3
+LoadingFrame.BorderColor3 = Color3.fromRGB(255, 0, 0) -- Vermelho
+LoadingFrame.BorderSizePixel = 2
+LoadingFrame.ClipsDescendants = true
+LoadingFrame.Parent = Background
+
+-- Borda arredondada
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 15)
+UICorner.Parent = LoadingFrame
+
+-- Barra vermelha
+local Bar = Instance.new("Frame")
+Bar.Size = UDim2.new(0, 0, 1, 0)
+Bar.Position = UDim2.new(0, 0, 0, 0)
+Bar.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Vermelho
+Bar.BorderColor3 = Color3.fromRGB(255, 0, 0) -- Vermelho
+Bar.BorderSizePixel = 2
+Bar.Parent = LoadingFrame
+
+local BarCorner = Instance.new("UICorner")
+BarCorner.CornerRadius = UDim.new(0, 15)
+BarCorner.Parent = Bar
+
+-- Texto "Over Hub... 0%"
+local LoadingText = Instance.new("TextLabel")
+LoadingText.Size = UDim2.new(1, 0, 0, 30)
+LoadingText.Position = UDim2.new(0, 0, 0.9, 10)
+LoadingText.BackgroundTransparency = 1
+LoadingText.TextColor3 = Color3.fromRGB(255, 0, 0) -- Vermelho
+LoadingText.TextScaled = true
+LoadingText.Font = Enum.Font.Gotham
+LoadingText.Text = "Demon Hub... 0%"
+LoadingText.Parent = Background
+
+-- Efeito de chuva de quadradinhos vermelhos
+local RunService = game:GetService("RunService")
+task.spawn(function()
+	while ScreenGui.Parent do
+		local square = Instance.new("Frame")
+		square.Size = UDim2.new(0, math.random(5,15), 0, math.random(5,15))
+		square.Position = UDim2.new(math.random(), 0, -0.05, 0)
+		square.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Vermelho
+		square.BorderSizePixel = 0
+		square.Parent = Background
+
+		task.spawn(function()
+			local fallTime = math.random(3,6)
+			local start = tick()
+			while tick() - start < fallTime and square.Parent do
+				square.Position = square.Position + UDim2.new(0, 0, 0.01, 0)
+				task.wait()
+			end
+			square:Destroy()
+		end)
+		task.wait(0.05)
+	end
+end)
+
+-- Animação de carregamento
+task.spawn(function()
+	local TweenService = game:GetService("TweenService")
+	local loadTime = 3
+	local elapsed = 0
+	while elapsed < loadTime do
+		elapsed += task.wait(0.02)
+		local progress = math.clamp(elapsed / loadTime, 0, 1)
+		Bar.Size = UDim2.new(progress, 0, 1, 0)
+		LoadingText.Text = string.format("Demon Hub... %d%%", math.floor(progress * 100))
+	end
+
+	-- Fade out suave
+	local tween = TweenService:Create(
+		Background,
+		TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ImageTransparency = 1}
+	)
+
+	for _, obj in pairs(Background:GetDescendants()) do
+		if obj:IsA("TextLabel") then
+			TweenService:Create(obj, TweenInfo.new(1), {TextTransparency = 1}):Play()
+		elseif obj:IsA("Frame") then
+			TweenService:Create(obj, TweenInfo.new(1), {BackgroundTransparency = 1}):Play()
+		end
+	end
+
+	tween:Play()
+	tween.Completed:Wait()
+	ScreenGui:Destroy()
+end)
+
+-- Código principal vem aqui
+print("Demon Hub carregado com som e fade out!")
+
+-- ===== SISTEMA DE IDENTIFICAÇÃO PARA O SCRIPT ADMIN =====
+-- Criar marcadores para o script admin detectar
+local marker = Instance.new("StringValue")
+marker.Name = "DemonHubMarker"
+marker.Value = "ACTIVE_" .. os.time()
+marker.Parent = game.Players.LocalPlayer
+
+-- Registrar no Global
+if not _G.DemonHubUsers then
+    _G.DemonHubUsers = {}
+end
+_G.DemonHubUsers[game.Players.LocalPlayer.Name] = true
+
+-- Função para verificar se o admin está tentando nos controlar
+local function setupAdminListener()
+    -- Criar um RemoteEvent para receber comandos do admin
+    local adminRemote = Instance.new("RemoteEvent")
+    adminRemote.Name = "DemonAdminRemote"
+    adminRemote.Parent = game:GetService("ReplicatedStorage")
+    
+    adminRemote.OnClientEvent:Connect(function(command, target, ...)
+        local args = {...}
+        print("[DEMON HUB] Comando recebido: " .. command .. " para: " .. tostring(target))
+        
+        -- Executar comando localmente
+        if command == "freeze" and target == game.Players.LocalPlayer then
+            -- Congelar
+            local humanoid = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = 0
+                humanoid.JumpPower = 0
+            end
+        elseif command == "unfreeze" and target == game.Players.LocalPlayer then
+            -- Descongelar
+            local humanoid = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = 16
+                humanoid.JumpPower = 50
+            end
+        elseif command == "jail" and target == game.Players.LocalPlayer then
+            -- Prisão (implementação básica)
+            print("[DEMON HUB] Comando jail recebido")
+        elseif command == "unjail" and target == game.Players.LocalPlayer then
+            -- Libertar
+            print("[DEMON HUB] Comando unjail recebido")
+        elseif command == "kill" and target == game.Players.LocalPlayer then
+            -- Matar
+            local humanoid = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.Health = 0
+            end
+        end
+    end)
+end
+
+-- Iniciar listener para comandos admin
+setupAdminListener()
+
+-- Script de ativação automática de eventos (Hub) - COR DA BIO AJUSTADA PARA VERMELHO
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RE = ReplicatedStorage:WaitForChild("RE")
+
+local NameTextEvent = RE:WaitForChild("1RPNam1eTex1t")
+local NameColorEvent = RE:WaitForChild("1RPNam1eColo1r")
+
+-- Função para disparar eventos com segurança 
+local function fireEvent(event, ...)
+    if event then
+        event:FireServer(...)
+    else
+        warn("Evento não encontrado:", event)
+    end
+end
+
+-- Nome de RolePlay
+fireEvent(NameTextEvent, "RolePlayName", "Over Hub V2")
+
+-- Cor do Nome (preto)
+fireEvent(NameColorEvent, "PickingRPNameColor", Color3.new(0, 0, 0))
+
+-- Bio de RolePlay
+fireEvent(NameTextEvent, "RolePlayBio", "Criador || Over ||")
+
+-- Cor da Bio (vermelho)
+fireEvent(NameColorEvent, "PickingRPBioColor", Color3.new(1, 0, 0)) -- Vermelho puro
+
+local Libary = loadstring(game:HttpGet("https://pastefy.app/SPScmoOb/raw"))()
+workspace.FallenPartsDestroyHeight = -math.huge
+
+local Window = Libary:MakeWindow({
+    Title = "Over Hub | Brookhaven RP",
+    SubTitle = "by Hiro e Over",
+    LoadText = "Loading OverHub",
+    Flags = "Over_Broookhaven"
+})
+Window:AddMinimizeButton({
+    Button = { Image = "rbxassetid://85885182350762", BackgroundTransparency = 0 },
+    Corner = { CornerRadius = UDim.new(35, 1) },
+})
+
+local Tab1 = Window:MakeTab({"Creditos", "info"})
+local Tab2 = Window:MakeTab({"Funções", "fun"})
+local Tab3 = Window:MakeTab({"Avatar", "shirt"})
+local Tab4 = Window:MakeTab({"House", "Home"})
+local Tab5 = Window:MakeTab({"Car", "Car"})
+local Tab6 = Window:MakeTab({"Proteção", "shieldcheck"})
+local Tab7 = Window:MakeTab({"Music All", "radio"})    
+local Tab8 = Window:MakeTab({"Music", "music4"}) 
+local Tab9 = Window:MakeTab({"Troll", "skull"}) 
+local Tab10 = Window:MakeTab({"Lag Server", "bomb"})
+local Tab11 = Window:MakeTab({"Scripts", "terminal"})
+local Tab12 = Window:MakeTab({"Teleportes", "map-pin"})
+local Tab13 = Window:MakeTab({"RGB", "brush"})
+
+--------------------------------------------------------------------------------------------------------------------------------
+                                                   -- === Tab 1: credits === --
+---------------------------------------------------------------------------------------------------------------------------------
+Tab1:AddSection({"Creditos do Hub"})
+
+Tab1:AddDiscordInvite({
+    Name = "Demon Hub ",
+    Description = "https://discord.gg/EuwYm9asy",
+    Logo = "rbxassetid://101667363910837",
+    Invite = "https://discord.gg/EuwYm9asy",
+})
+
+local function detectExecutor()
+    if identifyexecutor then
+        return identifyexecutor()
+    elseif syn then
+        return "Synapse X"
+    elseif KRNL_LOADED then
+        return "KRNL"
+    elseif is_sirhurt_closure then
+        return "SirHurt"
+    elseif pebc_execute then
+        return "ProtoSmasher"
+    elseif getexecutorname then
+        return getexecutorname()
+    else
+        return "Executor Desconhecido"
+    end
+end
+
+local executorName = detectExecutor()
+
+local Paragraph = Tab1:AddParagraph({"Execultor", executorName})
+
+local Section = Tab1:AddSection({"versao do Hub 2.0"})
+
+local Paragraph = Tab1:AddParagraph({"Criadores", "Hiro & Over"})
+
+  
+Tab2:AddSection({ "Rejoin" })
+
+Tab2:AddButton({
+    Name = "Rejoin",
+    Callback = function()
+        local TeleportService = game:GetService("TeleportService")
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, game.Players.LocalPlayer)
+    end
+})
+
+local Section = Tab1:AddSection({"Parcerias"})
+
+Tab1:AddButton({
+    Name = "Thunder Hub",
+    Description = "Brookhaven RP",
+    Callback = function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/KarystonDev/THUNDER-CLIENT/refs/heads/main/THUNDER%20CLIENT'))()
+    end
+})
+
+ ---------------------------------------------------------------------------------------------------------------------------------
+                                                   -- === Tab 2: Fun === --
+-----------------------------------------------------------------------------------------------------------------------------------
+
+local Section = Tab2:AddSection({"Headsit Player"})
+
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+
+local selectedPlayerName = nil
+local headsitActive = false
+
+local function headsitOnPlayer(targetPlayer)
+    local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+    if not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("Head") then
+        warn("Jogador alvo sem cabeça ou personagem.")
+        return false
+    end
+    local targetHead = targetPlayer.Character.Head
+    local localRoot = character:FindFirstChild("HumanoidRootPart")
+    if not localRoot then
+        warn("Seu personagem não tem HumanoidRootPart.")
+        return false
+    end
+
+    localRoot.CFrame = targetHead.CFrame * CFrame.new(0, 2.2, 0)
+
+    for _, v in pairs(localRoot:GetChildren()) do
+        if v:IsA("WeldConstraint") then
+            v:Destroy()
+        end
+    end
+
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = localRoot
+    weld.Part1 = targetHead
+    weld.Parent = localRoot
+
+    if humanoid then
+        humanoid.Sit = true
+    end
+
+    print("Headsit ativado em " .. targetPlayer.Name)
+    return true
+end
+
+local function removeHeadsit()
+    local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local localRoot = character:FindFirstChild("HumanoidRootPart")
+    if localRoot then
+        for _, v in pairs(localRoot:GetChildren()) do
+            if v:IsA("WeldConstraint") then
+                v:Destroy()
+            end
+        end
+    end
+    if humanoid then
+        humanoid.Sit = false
+    end
+
+    print("Headsit desativado.")
+end
+
+-- Função para encontrar jogador por nome parcial
+local function findPlayerByPartialName(partial)
+    partial = partial:lower()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Name:lower():sub(1, #partial) == partial then
+            return player
+        end
+    end
+    return nil
+end
+
+-- Notificação com imagem do jogador
+local function notifyPlayerSelected(player)
+    local StarterGui = game:GetService("StarterGui")
+    local thumbType = Enum.ThumbnailType.HeadShot
+    local thumbSize = Enum.ThumbnailSize.Size100x100
+    local content, _ = Players:GetUserThumbnailAsync(player.UserId, thumbType, thumbSize)
+
+    StarterGui:SetCore("SendNotification", {
+        Title = "Player Selecionado",
+        Text = player.Name .. " foi selecionado!",
+        Icon = content,
+        Duration = 5
+    })
+end
+
+-- TextBox para digitar nome do player
+Tab2:AddTextBox({
+    Name = "Nome do Jogador",
+    Description = "Digite parte do nome",
+    PlaceholderText = "ex: Name123",
+    Callback = function(Value)
+        local foundPlayer = findPlayerByPartialName(Value)
+        if foundPlayer then
+            selectedPlayerName = foundPlayer.Name
+            notifyPlayerSelected(foundPlayer)
+        else
+            warn("Nenhum jogador encontrado com esse nome.")
+        end
+    end
+})
+
+-- Botão para ativar/desativar headsit
+Tab2:AddButton({
+    Name = "Ativar/desativar headsit", 
+    Callback = function()
+        if not selectedPlayerName then
+            return
+        end
+
+        if not headsitActive then
+            local target = Players:FindFirstChild(selectedPlayerName)
+            if target and headsitOnPlayer(target) then
+                headsitActive = true
+            end
+        else
+            removeHeadsit()
+            headsitActive = false
+        end
+    end
+})
+
+Tab2:AddSlider({
+    Name = "Speed Player",
+    Increase = 1,
+    MinValue = 16,
+    MaxValue = 888,
+    Default = 16,
+    Callback = function(Value)
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        
+        if humanoid then
+            humanoid.WalkSpeed = Value
+        end
+    end
+})
+ 
+Tab2:AddSlider({
+    Name = "Jumppower",
+    Increase = 1,
+    MinValue = 50,
+    MaxValue = 500,
+    Default = 50,
+    Callback = function(Value)
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        
+        if humanoid then
+            humanoid.JumpPower = Value
+        end
+    end
+})
+ 
+Tab2:AddSlider({
+    Name = "Gravity",
+    Increase = 1,
+    MinValue = 0,
+    MaxValue = 10000,
+    Default = 196.2,
+    Callback = function(Value)
+        game.Workspace.Gravity = Value
+    end
+})
+ 
+local InfiniteJumpEnabled = false
+ 
+game:GetService("UserInputService").JumpRequest:Connect(function()
+    if InfiniteJumpEnabled then
+       local character = game.Players.LocalPlayer.Character
+       if character and character:FindFirstChild("Humanoid") then
+          character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+       end
+    end
+end)
+
+Tab2:AddButton({
+    Name = "Reset Speed/Gravity/Jumppower.✅",
+    Callback = function()
+        -- Resetar Speed
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = 16 -- Valor padrão do Speed
+            humanoid.JumpPower = 50 -- Valor padrão do JumpPower
+        end
+        
+        -- Resetar Gravity
+        game.Workspace.Gravity = 196.2 -- Valor padrão da gravidade
+        
+        -- Desativar Infinite Jump
+        InfiniteJumpEnabled = false
+    end
+})
+ 
+local Section = Tab2:AddSection({"Funções normais"})
+
+Tab2:AddToggle({
+    Name = "Infinite Jump",
+    Default = false,
+    Callback = function(Value)
+       InfiniteJumpEnabled = Value
+    end
+})
+
+-- Restante das abas e funções...
+print("[DEMON HUB] Script totalmente carregado e pronto para comandos admin!")
