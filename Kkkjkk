@@ -1,0 +1,490 @@
+-- DemonClient - Painel Admin
+-- Desenvolvido por: Hiro
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local TextChatService = game:GetService("TextChatService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local Workspace = game:GetService("Workspace")
+
+-- ===== SISTEMA DE WHITELIST =====
+local function getCurrentTimestamp()
+    return os.time()
+end
+
+local function parseDateTime(dateString)
+    -- Formato: "dd/mm/aaaa hh:mm"
+    local day, month, year, hour, minute = dateString:match("(%d+)/(%d+)/(%d+) (%d+):(%d+)")
+    if day and month and year and hour and minute then
+        return os.time({
+            day = tonumber(day),
+            month = tonumber(month),
+            year = tonumber(year),
+            hour = tonumber(hour),
+            min = tonumber(minute),
+            sec = 0
+        })
+    end
+    return nil
+end
+
+-- Sistema de Whitelist com ExpiraÃ§Ã£o
+local WhitelistData = {
+    -- Donos (sem expiraÃ§Ã£o)
+    ["hiro0881"] = {type = "Dono", expires = nil},
+    ["drakeee777"] = {type = "Staff", expires = nil},
+    ["testerscript88"] = {type = "Dono", expires = nil},
+    ["rmss_2012"] = {type = "Staff", expires = nil},
+    ["eltulio69"] = {type = "usuario adm", expires = nil},
+    ["covefred"] = {type = "usuario adm", expires = nil},
+    ["goku_blackpao"] = {type = "usuario adm", expires = nil},
+    ["miuuq_333"] = {type = "usuario adm", expires = nil},
+    
+    -- UsuÃ¡rios ADM com expiraÃ§Ã£o
+    ["cartolahub7"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("15/12/2030 23:59")},
+    ["misterio_zeusmod"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("15/04/2026 23:59")},
+    ["caiozn7_669"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("15/12/2030 23:59")},
+    ["donarzissus"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("15/12/2030 23:59")},
+    ["vampzinkkj_1"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("15/12/2030 23:59")},
+    ["ppyszt"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("7/01/2026 18:30")},
+    ["pedro_roneido"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("10/01/2030 12:00")},
+    ["pedro_roneido20"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("10/01/2030 12:00")},
+    ["ixi362"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("05/01/2030 15:45")},
+    ["jifhgiu"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("25/12/2030 20:00")},
+    ["piloto158d"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("30/12/2030 14:20")},
+    ["rafaelgms7810396"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("25/12/2030 20:00")},
+    ["ilu1_22"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("08/01/2030 10:30")},
+    ["xmarcelo_27262"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("12/01/2030 16:15")},
+    ["ryansididd"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("03/01/2030 09:00")},
+    ["redz_hub99975"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("28/12/2030 22:45")},
+    ["teteu0902201mc"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("15/01/2030 11:30")},
+    ["amongus23445844sad"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("18/12/2030 19:20")},
+    ["ttyyryjuh"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("22/12/2030 13:10")},
+    ["kevin_oliverra10"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("07/01/2030 17:40")},
+    ["drakeee777"] = {type = "dono", expires = parseDateTime("29/12/2030 21:15")},
+    ["eduard0k0"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("14/01/2030 08:50")},
+    ["gh707080s"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("31/12/2030 23:59")},
+    ["luroblox1262"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("06/01/2030 14:25")},
+    ["bonasamigo"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("19/10/2030 14:30")},
+    ["manopp72"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("25/10/2025 18:40")},
+    ["zack_89901"] = {type = "UsuÃ¡rio adm", expires = parseDateTime("25/10/2025 18:40")},
+    ["rackffr9"] = {type = "UsuÃ¡rio add", expires = parseDateTime("20/11/2025 18:40")},
+    ["oibuto7"] = {type = "UsuÃ¡rio add", expires = parseDateTime("31/10/2025 14:40")},
+    ["ensisbsjbrhe"] = {type = "UsuÃ¡rio add", expires = parseDateTime("09/10/2030 19:40")},
+    ["gui_neh1023"] = {type = "UsuÃ¡rio add", expires = parseDateTime("09/10/2030 19:40")},
+    ["killert_494"] = {type = "UsuÃ¡rio add", expires = parseDateTime("09/10/2030 19:40")},
+}
+
+-- FunÃ§Ã£o para verificar se usuÃ¡rio estÃ¡ na whitelist e nÃ£o expirou
+local function isUserWhitelisted(username)
+    local userData = WhitelistData[username:lower()]
+    if not userData then
+        return false, "NÃ£o estÃ¡ na whitelist"
+    end
+    
+    -- Verificar expiraÃ§Ã£o
+    if userData.expires then
+        local currentTime = getCurrentTimestamp()
+        if currentTime > userData.expires then
+            return false, "Whitelist expirada em " .. os.date("%d/%m/%Y %H:%M", userData.expires)
+        end
+    end
+    
+    return true, userData.type
+end
+
+-- VERIFICAÃ‡ÃƒO INICIAL - Se nÃ£o estiver na whitelist ou expirou, kicka imediatamente
+local function verifyWhitelistOnStart()
+    local username = LocalPlayer.Name:lower()
+    local isWhitelisted, reason = isUserWhitelisted(username)
+    
+    if not isWhitelisted then
+        -- Espera um pouco para carregar e depois kicka
+        task.wait(2)
+        if reason:find("expirada") then
+            LocalPlayer:Kick("âŒ SUA WHITELIST EXPIROU!\n\nData de expiraÃ§Ã£o: " .. reason:match("expirada em (.+)"))
+        else
+            LocalPlayer:Kick("âŒ VOCÃŠ NÃƒO ESTÃ NA WHITELIST!\n\nEntre em contato com o desenvolvedor.")
+        end
+        return false
+    end
+    
+    return true
+end
+
+-- Executa a verificaÃ§Ã£o inicial
+if not verifyWhitelistOnStart() then
+    return -- Para a execuÃ§Ã£o do script se nÃ£o passou na whitelist
+end
+
+-- ===== SISTEMA DE COMANDOS DO SCRIPT ABAIXO =====
+-- ðŸš¨ ConfiguraÃ§Ã£o de Donos e Moderadores
+local DONOS = {
+    ["hiro0881"] = true,
+    ["jifhgiu"] = true,
+    ["cartolahub7"] = true,
+    ["ppyszt"] = true,
+    ["pedro_roneido"] = true,
+    ["pedro_roneido20"] = true,
+    ["ixi362"] = true,
+    ["rafaelgms7810396"] = true,
+    ["piloto158d"] = true,
+    ["rafaelgms67901"] = true,
+    ["ilu1_22"] = true,
+    ["xmarcelo_27262"] = true,
+    ["ryansididd"] = true,
+    ["redz_hub99975"] = true,
+    ["amongus234458444sad"] = true,
+    ["teteu0902201mc"] = true,
+    ["ttyyryjuh"] = true,
+    ["kevin_oliverra10"] = true,
+}
+local MODS = {
+    ["hiro0881"] = true,
+    ["jifhgiu"] = true,
+    ["cartolahub7"] = true,
+    ["ppyszt"] = true,
+    ["pedro_roneido"] = true,
+    ["pedro_roneido20"] = true,
+    ["ixi362"] = true,
+    ["rafaelgms7810396"] = true,
+    ["piloto158d"] = true,
+    ["rafaelgms67901"] = true,
+    ["ilu1_22"] = true,
+    ["xmarcelo_27262"] = true,
+    ["ryansididd"] = true,
+    ["redz_hub99975"] = true,
+    ["amongus234458444sad"] = true,
+    ["teteu0902201mc"] = true,
+    ["ttyyryjuh"] = true,
+    ["kevin_oliverra10"] = true,
+}
+local TEMP_MODS = {
+    ["hiro0881"] = true,
+    ["jifhgiu"] = true,
+    ["cartolahub7"] = true,
+    ["ppyszt"] = true,
+    ["pedro_roneido"] = true,
+    ["pedro_roneido20"] = true,
+    ["ixi362"] = true,
+    ["rafaelgms7810396"] = true,
+    ["piloto158d"] = true,
+    ["rafaelgms67901"] = true,
+    ["ilu1_22"] = true,
+    ["xmarcelo_27262"] = true,
+    ["ryansididd"] = true,
+    ["redz_hub99975"] = true,
+    ["amongus234458444sad"] = true,
+    ["teteu0902201mc"] = true,
+    ["ttyyryjuh"] = true,
+    ["kevin_oliverra10"] = true,
+}
+
+local function IsDono(n) return DONOS[n] == true end
+local function IsMod(n) return MODS[n] == true end
+local function IsTempMod(n) return TEMP_MODS[n] == true end
+local function IsAutorizado(n) return IsDono(n) or IsMod(n) or IsTempMod(n) end
+
+-- ðŸš¨ ATENÃ‡ÃƒO: VERIFIQUE SE O CAMINHO PARA OS REMOTES ESTÃ CORRETO!
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+
+-- ðŸ§  VariÃ¡veis de Estado
+local OVER_USERS = {}
+local tagsVisiveis = true
+local JAILED_PLAYERS = {}
+local FROZEN_PLAYERS = {}
+
+-- ConfiguraÃ§Ã£o de Jumpscares
+local JUMPSCARES = {
+    { Name = ";jumps1", ImageId = "rbxassetid://126754882337711", AudioId = "rbxassetid://138873214826309" },
+    { Name = ";jumps2", ImageId = "rbxassetid://86379969987314", AudioId = "rbxassetid://143942090" },
+    { Name = ";jumps3", ImageId = "rbxassetid://127382022168206", AudioId = "rbxassetid://143942090" },
+    { Name = ";jumps4", ImageId = "rbxassetid://95973611964555", AudioId = "rbxassetid://138873214826309" },
+}
+
+-- FunÃ§Ãµes de AÃ§Ã£o (Freeze, Unfreeze, Jail, Unjail, Float, KillPlus, Jumpscare)
+local function FreezePlayer(player)
+    if not player or not player.Character then return false end
+    local h = player.Character:FindFirstChildOfClass("Humanoid")
+    if not h or FROZEN_PLAYERS[player.Name] then return false end
+    FROZEN_PLAYERS[player.Name] = { WalkSpeed = h.WalkSpeed, JumpPower = h.JumpPower }
+    h.WalkSpeed = 0
+    h.JumpPower = 0
+    return true
+end
+
+local function UnfreezePlayer(player)
+    if not player or not FROZEN_PLAYERS[player.Name] then return false end
+    local s = FROZEN_PLAYERS[player.Name]
+    if player.Character then
+        local h = player.Character:FindFirstChildOfClass("Humanoid")
+        if h then
+            h.WalkSpeed = s.WalkSpeed
+            h.JumpPower = s.JumpPower
+        end
+    end
+    FROZEN_PLAYERS[player.Name] = nil
+    return true
+end
+
+local function CreateAndManageJail(player)
+    if not player or not player.Character then return false end
+    local e = Workspace:FindFirstChild("Jail_" .. player.Name)
+    if e then e:Destroy() end
+    if JAILED_PLAYERS[player.Name] and JAILED_PLAYERS[player.Name].loop then
+        task.cancel(JAILED_PLAYERS[player.Name].loop)
+    end
+    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+    local m = Instance.new("Model", Workspace)
+    m.Name = "Jail_" .. player.Name
+    local s = 8
+    local p = hrp.Position
+    local t = {
+        Base = Instance.new("Part", m),
+        Roof = Instance.new("Part", m),
+        Wall1 = Instance.new("Part", m),
+        Wall2 = Instance.new("Part", m),
+        Wall3 = Instance.new("Part", m),
+        Wall4 = Instance.new("Part", m)
+    }
+    t.Base.Size = Vector3.new(s, 0.5, s)
+    t.Base.Position = p - Vector3.new(0, player.Character.Humanoid.HipHeight + 0.25, 0)
+    t.Roof.Size = Vector3.new(s, 0.5, s)
+    t.Roof.Position = t.Base.Position + Vector3.new(0, s, 0)
+    t.Wall1.Size = Vector3.new(0.5, s, s)
+    t.Wall1.Position = t.Base.Position + Vector3.new(s / 2, s / 2, 0)
+    t.Wall2.Size = Vector3.new(0.5, s, s)
+    t.Wall2.Position = t.Base.Position - Vector3.new(s / 2, -s / 2, 0)
+    t.Wall3.Size = Vector3.new(s, s, 0.5)
+    t.Wall3.Position = t.Base.Position + Vector3.new(0, s / 2, s / 2)
+    t.Wall4.Size = Vector3.new(s, s, 0.5)
+    t.Wall4.Position = t.Base.Position - Vector3.new(0, -s / 2, s / 2)
+    for _, v in pairs(t) do
+        v.Anchored = true
+        v.CanCollide = true
+        v.Material = Enum.Material.Neon
+        v.Color = Color3.fromRGB(0, 200, 255)
+        v.Transparency = 0.6
+    end
+    if player == LocalPlayer then
+        local l = task.spawn(function()
+            local c = t.Base.Position + Vector3.new(0, player.Character.Humanoid.HipHeight, 0)
+            while JAILED_PLAYERS[player.Name] and player.Parent and player.Character and player.Character.Parent do
+                local h = player.Character:FindFirstChild("HumanoidRootPart")
+                if h and (h.Position - c).Magnitude > (s / 2) - 1 then
+                    h.CFrame = CFrame.new(c)
+                end
+                task.wait(0.1)
+            end
+        end)
+        JAILED_PLAYERS[player.Name] = { loop = l }
+    else
+        JAILED_PLAYERS[player.Name] = {}
+    end
+    return true
+end
+
+local function RemoveJail(player)
+    local w = Workspace:FindFirstChild("Jail_" .. player.Name)
+    if w then w:Destroy() end
+    if not player or not JAILED_PLAYERS[player.Name] then return false end
+    local d = JAILED_PLAYERS[player.Name]
+    if d.loop then task.cancel(d.loop) end
+    JAILED_PLAYERS[player.Name] = nil
+    return true
+end
+
+local function FloatPlayer(player)
+    if not player or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") or not player.Character:FindFirstChildOfClass("Humanoid") then return false end
+    local targetHrp = player.Character.HumanoidRootPart
+    local targetHumanoid = player.Character:FindFirstChildOfClass("Humanoid")
+    local targetPos = targetHrp.Position
+
+    targetHumanoid.WalkSpeed = 0
+    targetHumanoid.JumpHeight = 0
+
+    local bodyVelocity = Instance.new("BodyVelocity", targetHrp)
+    bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+    bodyVelocity.Velocity = Vector3.new(0, 10, 0)
+    bodyVelocity.Name = "FloatVelocity"
+
+    local maxHeight = targetPos.Y + 50
+    local connection
+    connection = game:GetService("RunService").Heartbeat:Connect(function()
+        if not player.Character or not player.Character.Parent or not targetHrp.Parent or not targetHumanoid.Parent then
+            bodyVelocity:Destroy()
+            connection:Disconnect()
+            return
+        end
+        if targetHrp.Position.Y >= maxHeight then
+            bodyVelocity:Destroy()
+            connection:Disconnect()
+            targetHumanoid.Health = 0
+        end
+    end)
+    return true
+end
+
+local function KillPlus(player)
+    if not player or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return false end
+    local targetHrp = player.Character.HumanoidRootPart
+    local targetPos = targetHrp.Position
+
+    local parts = {}
+    local numParts = 5
+    for i = 1, numParts do
+        local part = Instance.new("Part", Workspace)
+        part.Name = "KillPlusPart_" .. player.Name .. "_" .. i
+        part.Size = Vector3.new(2, 2, 2)
+        part.Position = targetPos + Vector3.new(math.random(-10, 10), -5, math.random(-10, 10))
+        part.Anchored = true
+        part.CanCollide = true
+        part.Material = Enum.Material.Neon
+        part.Color = Color3.fromRGB(255, 0, 0)
+        table.insert(parts, part)
+    end
+
+    local speed = 50
+    for _, part in ipairs(parts) do
+        local distance = (targetPos - part.Position).Magnitude
+        local duration = distance / speed
+        local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+        local tween = TweenService:Create(part, tweenInfo, { Position = targetPos + Vector3.new(0, 1, 0) })
+        part.Anchored = false
+        tween:Play()
+
+        part.Touched:Connect(function(hit)
+            if hit.Parent == player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local bodyVelocity = Instance.new("BodyVelocity", targetHrp)
+                bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                bodyVelocity.Velocity = Vector3.new(math.random(-50, 50), 100, math.random(-50, 50))
+                game:GetService("Debris"):AddItem(bodyVelocity, 0.5)
+            end
+        end)
+    end
+
+    game:GetService("Debris"):AddItem(Instance.new("Folder", Workspace), 5):GetChildren()[1]:Add(parts)
+    return true
+end
+
+local function TriggerJumpscare(player, jumpscare)
+    if not player or player ~= LocalPlayer then return false end
+    local screenGui = Instance.new("ScreenGui", CoreGui)
+    screenGui.Name = "JumpscareGui"
+    screenGui.IgnoreGuiInset = true
+    local imageLabel = Instance.new("ImageLabel", screenGui)
+    imageLabel.Size = UDim2.new(1, 0, 1, 0)
+    imageLabel.Position = UDim2.new(0, 0, 0, 0)
+    imageLabel.BackgroundTransparency = 1
+    imageLabel.Image = jumpscare.ImageId
+    local sound = Instance.new("Sound", screenGui)
+    sound.SoundId = jumpscare.AudioId
+    sound.Volume = 1
+    sound.Looped = false
+    sound:Play()
+    local flashCount = 10
+    local flashInterval = 0.2
+    for i = 1, flashCount do
+        if not screenGui.Parent then break end
+        imageLabel.ImageTransparency = (i % 2 == 0) and 0.3 or 0
+        task.wait(flashInterval)
+    end
+    sound:Stop()
+    screenGui:Destroy()
+    return true
+end
+
+-- FunÃ§Ã£o para Encontrar Jogador por Nome Parcial
+local function findPlayerByPartialName(partialName)
+    if not partialName or partialName == "" then return nil end
+    local lowerPartialName = partialName:lower():gsub("%s+", "")
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Name:lower():find(lowerPartialName, 1, true) or p.DisplayName:lower():find(lowerPartialName, 1, true) then
+            return p
+        end
+    end
+    return nil
+end
+
+-- Manipulador de Chat
+local function analisarChatDe(chatter, message)
+    local msg = message:lower():gsub("%s+", " ")
+    local args = {}
+    for word in msg:gmatch("%S+") do
+        table.insert(args, word)
+    end
+
+    -- Verificar ;verifique
+    if msg == ";verifique" then
+        if not IsAutorizado(chatter.Name) then
+            if chatter == LocalPlayer then
+                StarterGui:SetCore("ChatMakeSystemMessage", {
+                    Text = "[Light Hub] âŒ VocÃª nÃ£o tem permissÃ£o para usar ;verifique.",
+                    Color = Color3.fromRGB(255, 100, 100),
+                    Font = Enum.Font.GothamBold
+                })
+            end
+            return
+        end
+        StarterGui:SetCore("ChatMakeSystemMessage", {
+            Text = "[Light Hub] Comando ;verifique detectado de " .. chatter.Name,
+            Color = Color3.fromRGB(0, 255, 0),
+            Font = Enum.Font.GothamBold
+        })
+        if not IsAutorizado(LocalPlayer.Name) then
+            task.delay(math.random(0.1, 0.8), function()
+                pcall(function()
+                    local channel = TextChatService:WaitForChild("TextChannels"):FindFirstChild("RBXGeneral") or TextChatService:WaitForChild("TextChannels"):GetChildren()[1]
+                    if channel then
+                        channel:SendAsync("Over_Users")
+                        StarterGui:SetCore("ChatMakeSystemMessage", {
+                            Text = "[Light Hub] " .. LocalPlayer.Name .. " respondeu com Over_Users",
+                            Color = Color3.fromRGB(0, 255, 0),
+                            Font = Enum.Font.GothamBold
+                        })
+                    end
+                end)
+            end)
+        end
+        return
+    end
+
+    -- Detectar Over_Users
+    if msg == "over_users" then
+        over_USERS[chatter.Name] = true
+        StarterGui:SetCore("ChatMakeSystemMessage", {
+            Text = "[Light Hub] " .. chatter.Name .. " identificado como UsuÃ¡rio Light",
+            Color = Color3.fromRGB(170, 0, 255),
+            Font = Enum.Font.GothamBold
+        })
+        return
+    end
+
+    -- Restringir outros comandos a autorizados
+    if not IsAutorizado(chatter.Name) then
+        if chatter == LocalPlayer then
+            StarterGui:SetCore("ChatMakeSystemMessage", {
+                Text = "[Light Hub] âŒ VocÃª nÃ£o tem permissÃ£o para usar este comando.",
+                Color = Color3.fromRGB(255, 100, 100),
+                Font = Enum.Font.GothamBold
+            })
+        end
+        return
+    end
+
+    -- Manipular ;ch
+    if args[1] == ";ch" and #args >= 3 then
+        local targetPartialName = args[2]
+        local messageToSend = table.concat(args, " ", 3)
+        local targetPlayer = findPlayerByPartialName(targetPartialName)
+        if targetPlayer and targetPlayer == LocalPlayer and messageToSend ~= "" then
+            pcall(function()
+                local channel = TextChatService:WaitForChild("TextChannels"):FindFirstChild("RBXGeneral") or TextChatService:WaitForChild("TextChannels"):GetChildren()[1]
+                if channel then
+                    channel:SendAsync(messageToSend)
+                    StarterGui:SetCore("
