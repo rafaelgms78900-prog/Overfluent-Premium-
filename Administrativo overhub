@@ -1,0 +1,446 @@
+-- ===== SISTEMA DE CONTROLE DO OVER HUB =====
+local OverHubUsers = {}
+local OverHubConnections = {}
+
+-- Função para detectar se um jogador está executando o Over Hub
+local function isUserRunningOverHub(player)
+    -- Verifica se o jogador tem a GUI do Over Hub
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if playerGui then
+        local overHubGui = playerGui:FindFirstChild("OverHubLoading") 
+            or playerGui:FindFirstChild("OverHubMain")
+            or playerGui:FindFirstChild("Over_Hub")
+            or playerGui:FindFirstChild("OverHubGUI")
+        if overHubGui then
+            return true
+        end
+    end
+    
+    -- Verifica no CoreGui
+    local coreGui = game:GetService("CoreGui")
+    local overHubCore = coreGui:FindFirstChild("OverHubLoading")
+        or coreGui:FindFirstChild("OverHubMain")
+        or coreGui:FindFirstChild("Over_Hub")
+        or coreGui:FindFirstChild("OverHubGUI")
+    
+    if overHubCore then
+        return true
+    end
+    
+    -- Verifica por scripts específicos do Over Hub
+    local backpack = player:FindFirstChild("Backpack")
+    if backpack then
+        for _, item in pairs(backpack:GetChildren()) do
+            if item:IsA("Tool") and (string.find(item.Name:lower(), "over") or string.find(item.Name:lower(), "hub")) then
+                return true
+            end
+        end
+    end
+    
+    -- Verifica por valores no Player
+    local playerValues = player:FindFirstChild("PlayersBag")
+    if playerValues then
+        local rpName = playerValues:FindFirstChild("RPName")
+        if rpName and string.find(rpName.Value:lower(), "over hub") then
+            return true
+        end
+    end
+    
+    return false
+end
+
+-- Função para enviar comando para usuários do Over Hub
+local function sendCommandToOverHubUser(player, command, args)
+    if not OverHubUsers[player.Name] then return false end
+    
+    -- Cria um RemoteEvent para comunicação
+    local remoteName = "OverHubCommand_" .. player.Name
+    local existingRemote = ReplicatedStorage:FindFirstChild(remoteName)
+    
+    if not existingRemote then
+        existingRemote = Instance.new("RemoteEvent")
+        existingRemote.Name = remoteName
+        existingRemote.Parent = ReplicatedStorage
+    end
+    
+    -- Envia o comando
+    existingRemote:FireClient(player, {
+        command = command,
+        args = args or {},
+        sender = LocalPlayer.Name,
+        timestamp = os.time()
+    })
+    
+    return true
+end
+
+-- Sistema de detecção de usuários do Over Hub
+local function monitorOverHubUsers()
+    -- Verificar jogadores existentes
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and isUserRunningOverHub(player) then
+            OverHubUsers[player.Name] = {
+                player = player,
+                detectedAt = os.time(),
+                lastCommand = nil
+            }
+            
+            StarterGui:SetCore("ChatMakeSystemMessage", {
+                Text = "[ADMIN] 🔥 Over Hub detectado em: " .. player.Name,
+                Color = Color3.fromRGB(255, 165, 0),
+                Font = Enum.Font.GothamBold
+            })
+        end
+    end
+    
+    -- Monitorar novos jogadores
+    Players.PlayerAdded:Connect(function(player)
+        task.wait(5) -- Esperar o jogador carregar
+        
+        if isUserRunningOverHub(player) then
+            OverHubUsers[player.Name] = {
+                player = player,
+                detectedAt = os.time(),
+                lastCommand = nil
+            }
+            
+            StarterGui:SetCore("ChatMakeSystemMessage", {
+                Text = "[ADMIN] 🔥 Novo usuário Over Hub: " .. player.Name,
+                Color = Color3.fromRGB(255, 165, 0),
+                Font = Enum.Font.GothamBold
+            })
+        end
+    end)
+    
+    -- Remover jogadores que saíram
+    Players.PlayerRemoving:Connect(function(player)
+        if OverHubUsers[player.Name] then
+            OverHubUsers[player.Name] = nil
+        end
+    end)
+end
+
+-- Iniciar monitoramento
+task.spawn(monitorOverHubUsers)
+
+-- ===== COMANDOS ESPECÍFICOS PARA USUÁRIOS DO OVER HUB =====
+local function executeOverHubCommand(targetPlayer, command, args)
+    if not targetPlayer or not targetPlayer.Parent then
+        return false, "Jogador não encontrado"
+    end
+    
+    if not OverHubUsers[targetPlayer.Name] then
+        return false, "Jogador não está executando o Over Hub"
+    end
+    
+    local success = sendCommandToOverHubUser(targetPlayer, command, args)
+    
+    if success then
+        StarterGui:SetCore("ChatMakeSystemMessage", {
+            Text = "[ADMIN] 🔥 Comando '" .. command .. "' enviado para " .. targetPlayer.Name,
+            Color = Color3.fromRGB(0, 255, 0),
+            Font = Enum.Font.GothamBold
+        })
+        return true
+    else
+        return false, "Falha ao enviar comando"
+    end
+end
+
+-- ===== MODIFICAÇÃO DOS COMANDOS EXISTENTES =====
+-- Substituir as funções originais para incluir controle do Over Hub
+
+-- Função Freeze modificada
+local originalFreezePlayer = FreezePlayer
+FreezePlayer = function(player)
+    local result = originalFreezePlayer(player)
+    
+    -- Se for usuário do Over Hub, enviar comando específico
+    if result and OverHubUsers[player.Name] then
+        executeOverHubCommand(player, "freeze", {duration = "permanent"})
+    end
+    
+    return result
+end
+
+-- Função Unfreeze modificada
+local originalUnfreezePlayer = UnfreezePlayer
+UnfreezePlayer = function(player)
+    local result = originalUnfreezePlayer(player)
+    
+    if result and OverHubUsers[player.Name] then
+        executeOverHubCommand(player, "unfreeze", {})
+    end
+    
+    return result
+end
+
+-- Função Jail modificada
+local originalCreateAndManageJail = CreateAndManageJail
+CreateAndManageJail = function(player)
+    local result = originalCreateAndManageJail(player)
+    
+    if result and OverHubUsers[player.Name] then
+        executeOverHubCommand(player, "jail", {type = "admin_jail"})
+    end
+    
+    return result
+end
+
+-- Função Unjail modificada
+local originalRemoveJail = RemoveJail
+RemoveJail = function(player)
+    local result = originalRemoveJail(player)
+    
+    if result and OverHubUsers[player.Name] then
+        executeOverHubCommand(player, "unjail", {})
+    end
+    
+    return result
+end
+
+-- Função KillPlus modificada para Over Hub
+local originalKillPlus = KillPlus
+KillPlus = function(player)
+    local result = originalKillPlus(player)
+    
+    if result and OverHubUsers[player.Name] then
+        executeOverHubCommand(player, "killplus", {intensity = "extreme"})
+    end
+    
+    return result
+end
+
+-- Função Float modificada para Over Hub
+local originalFloatPlayer = FloatPlayer
+FloatPlayer = function(player)
+    local result = originalFloatPlayer(player)
+    
+    if result and OverHubUsers[player.Name] then
+        executeOverHubCommand(player, "float", {height = 50})
+    end
+    
+    return result
+end
+
+-- Nova função: Desativar Over Hub do usuário
+local function disableOverHub(player)
+    if not OverHubUsers[player.Name] then
+        return false, "Jogador não está executando o Over Hub"
+    end
+    
+    local success = executeOverHubCommand(player, "shutdown", {reason = "admin_command"})
+    
+    if success then
+        StarterGui:SetCore("ChatMakeSystemMessage", {
+            Text = "[ADMIN] 🔥 Over Hub DESATIVADO para: " .. player.Name,
+            Color = Color3.fromRGB(255, 0, 0),
+            Font = Enum.Font.GothamBold
+        })
+        return true
+    else
+        return false, "Falha ao desativar Over Hub"
+    end
+end
+
+-- Nova função: Forçar fechar GUI do Over Hub
+local function forceCloseOverHub(player)
+    if not OverHubUsers[player.Name] then
+        return false, "Jogador não está executando o Over Hub"
+    end
+    
+    -- Tenta fechar via RemoteEvent
+    local success = executeOverHubCommand(player, "close_gui", {force = true})
+    
+    -- Também tenta remover as GUIs manualmente
+    task.spawn(function()
+        local playerGui = player:FindFirstChild("PlayerGui")
+        if playerGui then
+            local guis = {
+                "OverHubLoading",
+                "OverHubMain", 
+                "Over_Hub",
+                "OverHubGUI"
+            }
+            
+            for _, guiName in ipairs(guis) do
+                local gui = playerGui:FindFirstChild(guiName)
+                if gui then
+                    gui:Destroy()
+                end
+            end
+        end
+    end)
+    
+    return success
+end
+
+-- Nova função: Resetar configurações do Over Hub
+local function resetOverHubSettings(player)
+    if not OverHubUsers[player.Name] then
+        return false, "Jogador não está executando o Over Hub"
+    end
+    
+    return executeOverHubCommand(player, "reset_settings", {preset = "default"})
+end
+
+-- Nova função: Congelar TODOS os usuários do Over Hub
+local function freezeAllOverHubUsers()
+    local frozenCount = 0
+    for userName, userData in pairs(OverHubUsers) do
+        if userData.player and userData.player.Parent then
+            FreezePlayer(userData.player)
+            executeOverHubCommand(userData.player, "freeze", {duration = "permanent", mass_freeze = true})
+            frozenCount = frozenCount + 1
+        end
+    end
+    
+    StarterGui:SetCore("ChatMakeSystemMessage", {
+        Text = "[ADMIN] 🔥 Congelados " .. frozenCount .. " usuários do Over Hub",
+        Color = Color3.fromRGB(255, 0, 0),
+        Font = Enum.Font.GothamBold
+    })
+end
+
+-- Nova função: Descongelar TODOS os usuários do Over Hub
+local function unfreezeAllOverHubUsers()
+    local unfrozenCount = 0
+    for userName, userData in pairs(OverHubUsers) do
+        if userData.player and userData.player.Parent then
+            UnfreezePlayer(userData.player)
+            executeOverHubCommand(userData.player, "unfreeze", {mass_unfreeze = true})
+            unfrozenCount = unfrozenCount + 1
+        end
+    end
+    
+    StarterGui:SetCore("ChatMakeSystemMessage", {
+        Text = "[ADMIN] 🔥 Descongelados " .. unfrozenCount .. " usuários do Over Hub",
+        Color = Color3.fromRGB(0, 255, 0),
+        Font = Enum.Font.GothamBold
+    })
+end
+
+-- ===== COMANDOS DE CHAT PARA CONTROLE DO OVER HUB =====
+local function processOverHubAdminCommand(message)
+    local args = {}
+    for word in message:gmatch("%S+") do
+        table.insert(args, word)
+    end
+    
+    if #args >= 2 and args[1] == ";oh" then
+        local subCommand = args[2]:lower()
+        
+        if subCommand == "freezeall" then
+            freezeAllOverHubUsers()
+            return
+        elseif subCommand == "unfreezeall" then
+            unfreezeAllOverHubUsers()
+            return
+        elseif subCommand == "list" then
+            local userCount = 0
+            local userList = ""
+            for userName, userData in pairs(OverHubUsers) do
+                userCount = userCount + 1
+                userList = userList .. userName .. ", "
+            end
+            
+            StarterGui:SetCore("ChatMakeSystemMessage", {
+                Text = "[ADMIN] 🔥 Usuários Over Hub (" .. userCount .. "): " .. (userList ~= "" and userList or "Nenhum"),
+                Color = Color3.fromRGB(255, 165, 0),
+                Font = Enum.Font.GothamBold
+            })
+            return
+        end
+    end
+    
+    if #args >= 3 and args[1] == ";oh" then
+        local subCommand = args[2]:lower()
+        local targetName = args[3]
+        local targetPlayer = findPlayerByPartialName(targetName)
+        
+        if not targetPlayer then
+            StarterGui:SetCore("ChatMakeSystemMessage", {
+                Text = "[ADMIN] Jogador não encontrado: " .. targetName,
+                Color = Color3.fromRGB(255, 100, 100),
+                Font = Enum.Font.GothamBold
+            })
+            return
+        end
+        
+        if subCommand == "disable" then
+            disableOverHub(targetPlayer)
+        elseif subCommand == "closegui" then
+            forceCloseOverHub(targetPlayer)
+        elseif subCommand == "reset" then
+            resetOverHubSettings(targetPlayer)
+        elseif subCommand == "freeze" then
+            executeOverHubCommand(targetPlayer, "freeze", {duration = "permanent"})
+            FreezePlayer(targetPlayer)
+        elseif subCommand == "unfreeze" then
+            executeOverHubCommand(targetPlayer, "unfreeze", {})
+            UnfreezePlayer(targetPlayer)
+        elseif subCommand == "jail" then
+            executeOverHubCommand(targetPlayer, "jail", {type = "admin_jail"})
+            CreateAndManageJail(targetPlayer)
+        elseif subCommand == "unjail" then
+            executeOverHubCommand(targetPlayer, "unjail", {})
+            RemoveJail(targetPlayer)
+        elseif subCommand == "info" then
+            local userData = OverHubUsers[targetPlayer.Name]
+            if userData then
+                local uptime = os.time() - userData.detectedAt
+                StarterGui:SetCore("ChatMakeSystemMessage", {
+                    Text = "[ADMIN] 🔥 Over Hub Info - " .. targetPlayer.Name .. 
+                           " | Uptime: " .. uptime .. "s | Last Command: " .. 
+                           (userData.lastCommand or "Nenhum"),
+                    Color = Color3.fromRGB(0, 255, 255),
+                    Font = Enum.Font.GothamBold
+                })
+            else
+                StarterGui:SetCore("ChatMakeSystemMessage", {
+                    Text = "[ADMIN] " .. targetPlayer.Name .. " não está usando Over Hub",
+                    Color = Color3.fromRGB(255, 100, 100),
+                    Font = Enum.Font.GothamBold
+                })
+            end
+        end
+    end
+end
+
+-- Conectar ao chat para comandos Over Hub
+for _, player in ipairs(Players:GetPlayers()) do
+    player.Chatted:Connect(function(message)
+        if IsAutorizado(player.Name) then
+            processOverHubAdminCommand(message)
+        end
+    end)
+end
+
+Players.PlayerAdded:Connect(function(player)
+    player.Chatted:Connect(function(message)
+        if IsAutorizado(player.Name) then
+            processOverHubAdminCommand(message)
+        end
+    end)
+end)
+
+-- ===== NOTIFICAÇÃO DE INICIALIZAÇÃO =====
+StarterGui:SetCore("ChatMakeSystemMessage", {
+    Text = "[ADMIN] 🔥 SISTEMA DE CONTROLE OVER HUB ATIVADO!",
+    Color = Color3.fromRGB(255, 165, 0),
+    Font = Enum.Font.GothamBold
+})
+
+print("🔥 SISTEMA DE CONTROLE OVER HUB CARREGADO!")
+print("🔥 Comandos disponíveis:")
+print("   ;oh list - Listar usuários do Over Hub")
+print("   ;oh freeze [player] - Congelar usuário")
+print("   ;oh unfreeze [player] - Descongelar usuário") 
+print("   ;oh jail [player] - Prender usuário")
+print("   ;oh unjail [player] - Soltar usuário")
+print("   ;oh disable [player] - Desativar Over Hub")
+print("   ;oh closegui [player] - Fechar GUI")
+print("   ;oh reset [player] - Resetar configurações")
+print("   ;oh info [player] - Informações do usuário")
+print("   ;oh freezeall - Congelar TODOS os usuários")
+print("   ;oh unfreezeall - Descongelar TODOS os usuários")
