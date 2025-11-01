@@ -1,0 +1,555 @@
+-- OverClient - Painel Admin
+-- Desenvolvido por: Over e hiro
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local TextChatService = game:GetService("TextChatService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local Workspace = game:GetService("Workspace")
+
+-- ===== SISTEMA DE WHITELIST =====
+local function getCurrentTimestamp()
+    return os.time()
+end
+
+local function parseDateTime(dateString)
+    -- Formato: "dd/mm/aaaa hh:mm"
+    local day, month, year, hour, minute = dateString:match("(%d+)/(%d+)/(%d+) (%d+):(%d+)")
+    if day and month and year and hour and minute then
+        return os.time({
+            day = tonumber(day),
+            month = tonumber(month),
+            year = tonumber(year),
+            hour = tonumber(hour),
+            min = tonumber(minute),
+            sec = 0
+        })
+    end
+    return nil
+end
+
+-- Sistema de Whitelist com Expiração
+local WhitelistData = {
+    -- Donos (sem expiração)
+    ["hiro0881"] = {type = "Dono", expires = nil},
+    ["drakeee777"] = {type = "Staff", expires = nil},
+    ["testerscript88"] = {type = "Dono", expires = nil},
+    ["rmss_2012"] = {type = "Staff", expires = nil},
+    ["eltulio69"] = {type = "usuario adm", expires = nil},
+    ["covefred"] = {type = "usuario adm", expires = nil},
+    ["goku_blackpao"] = {type = "usuario adm", expires = nil},
+    ["miuuq_333"] = {type = "usuario adm", expires = nil},
+    ["renegado_688"] = {type = "usuario adm", expires = nil},
+    ["pie_56769"] = {type = "usuario adm", expires = nil},
+    ["Rafaelgms7810396"] = {type = "Dono", expires = nil},
+    
+    -- Usuários ADM com expiração
+    ["cartolahub7"] = {type = "Usuário adm", expires = parseDateTime("15/12/2030 23:59")},
+    ["misterio_zeusmod"] = {type = "Usuário adm", expires = parseDateTime("15/04/2026 23:59")},
+    ["caiozn7_669"] = {type = "Usuário adm", expires = parseDateTime("15/12/2030 23:59")},
+    ["donarzissus"] = {type = "Usuário adm", expires = parseDateTime("15/12/2030 23:59")},
+    ["vampzinkkj_1"] = {type = "Usuário adm", expires = parseDateTime("15/12/2030 23:59")},
+    ["ppyszt"] = {type = "Usuário adm", expires = parseDateTime("7/01/2026 18:30")},
+    ["pedro_roneido"] = {type = "Usuário adm", expires = parseDateTime("10/01/2030 12:00")},
+    ["pedro_roneido20"] = {type = "Usuário adm", expires = parseDateTime("10/01/2030 12:00")},
+    ["ixi362"] = {type = "Usuário adm", expires = parseDateTime("05/01/2030 15:45")},
+    ["jifhgiu"] = {type = "Usuário adm", expires = parseDateTime("25/12/2030 20:00")},
+    ["piloto158d"] = {type = "Usuário adm", expires = parseDateTime("30/12/2030 14:20")},
+    ["rafaelgms7810396"] = {type = "Usuário adm", expires = parseDateTime("25/12/2030 20:00")},
+    ["ilu1_22"] = {type = "Usuário adm", expires = parseDateTime("08/01/2030 10:30")},
+    ["xmarcelo_27262"] = {type = "Usuário adm", expires = parseDateTime("12/01/2030 16:15")},
+    ["ryansididd"] = {type = "Usuário adm", expires = parseDateTime("03/01/2030 09:00")},
+    ["redz_hub99975"] = {type = "Usuário adm", expires = parseDateTime("28/12/2030 22:45")},
+    ["teteu0902201mc"] = {type = "Usuário adm", expires = parseDateTime("15/01/2030 11:30")},
+    ["amongus23445844sad"] = {type = "Usuário adm", expires = parseDateTime("18/12/2030 19:20")},
+    ["ttyyryjuh"] = {type = "Usuário adm", expires = parseDateTime("22/12/2030 13:10")},
+    ["kevin_oliverra10"] = {type = "Usuário adm", expires = parseDateTime("07/01/2030 17:40")},
+    ["drakeee777"] = {type = "dono", expires = parseDateTime("29/12/2030 21:15")},
+    ["eduard0k0"] = {type = "Usuário adm", expires = parseDateTime("14/01/2030 08:50")},
+    ["gh707080s"] = {type = "Usuário adm", expires = parseDateTime("31/12/2030 23:59")},
+    ["luroblox1262"] = {type = "Usuário adm", expires = parseDateTime("06/01/2030 14:25")},
+    ["bonasamigo"] = {type = "Usuário adm", expires = parseDateTime("19/10/2030 14:30")},
+    ["manopp72"] = {type = "Usuário adm", expires = parseDateTime("25/10/2025 18:40")},
+    ["zack_89901"] = {type = "Usuário adm", expires = parseDateTime("25/10/2025 18:40")},
+    ["rackffr9"] = {type = "Usuário add", expires = parseDateTime("20/11/2025 18:40")},
+    ["oibuto7"] = {type = "Usuário add", expires = parseDateTime("31/10/2025 14:40")},
+    ["ensisbsjbrhe"] = {type = "Usuário add", expires = parseDateTime("09/10/2030 19:40")},
+    ["gui_neh1023"] = {type = "Usuário add", expires = parseDateTime("09/10/2030 19:40")},
+    ["killert_494"] = {type = "Usuário add", expires = parseDateTime("09/10/2030 19:40")},
+}
+
+-- Função para verificar se usuário está na whitelist e não expirou
+local function isUserWhitelisted(username)
+    local userData = WhitelistData[username:lower()]
+    if not userData then
+        return false, "Não está na whitelist"
+    end
+    
+    -- Verificar expiração
+    if userData.expires then
+        local currentTime = getCurrentTimestamp()
+        if currentTime > userData.expires then
+            return false, "Whitelist expirada em " .. os.date("%d/%m/%Y %H:%M", userData.expires)
+        end
+    end
+    
+    return true, userData.type
+end
+
+-- VERIFICAÇÃO INICIAL - Se não estiver na whitelist ou expirou, kicka imediatamente
+local function verifyWhitelistOnStart()
+    local username = LocalPlayer.Name:lower()
+    local isWhitelisted, reason = isUserWhitelisted(username)
+    
+    if not isWhitelisted then
+        -- Espera um pouco para carregar e depois kicka
+        task.wait(2)
+        if reason:find("expirada") then
+            LocalPlayer:Kick("❌ SUA WHITELIST EXPIROU!\n\nData de expiração: " .. reason:match("expirada em (.+)"))
+        else
+            LocalPlayer:Kick("❌ VOCÊ NÃO ESTÁ NA WHITELIST!\n\nEntre em contato com o desenvolvedor.")
+        end
+        return false
+    end
+    
+    return true
+end
+
+-- ===== VARIÁVEIS GLOBAIS =====
+local playerOriginalSpeed = {}
+local jaulas = {}
+local jailConnections = {}
+local rotatingPlayers = {}
+local backroomsMonster = nil
+local monsterActive = false
+local tagsVisiveis = true
+local playerNames = {}
+local selectedPlayers = {}
+
+-- Configuração de Jumpscares
+local JUMPSCARES = {
+    { Name = ";jumps1", ImageId = "rbxassetid://126754882337711", AudioId = "rbxassetid://138873214826309" },
+    { Name = ";jumps2", ImageId = "rbxassetid://86379969987314", AudioId = "rbxassetid://143942090" },
+    { Name = ";jumps3", ImageId = "rbxassetid://127382022168206", AudioId = "rbxassetid://143942090" },
+    { Name = ";jumps4", ImageId = "rbxassetid://95973611964555", AudioId = "rbxassetid://138873214826309" },
+}
+
+-- ===== FUNÇÕES DO SISTEMA =====
+
+-- Função Jumpscare
+local function TriggerJumpscare(player, jumpscare)
+    if not player or player ~= LocalPlayer then return false end
+    local screenGui = Instance.new("ScreenGui", CoreGui)
+    screenGui.Name = "JumpscareGui"
+    screenGui.IgnoreGuiInset = true
+    local imageLabel = Instance.new("ImageLabel", screenGui)
+    imageLabel.Size = UDim2.new(1, 0, 1, 0)
+    imageLabel.Position = UDim2.new(0, 0, 0, 0)
+    imageLabel.BackgroundTransparency = 1
+    imageLabel.Image = jumpscare.ImageId
+    local sound = Instance.new("Sound", screenGui)
+    sound.SoundId = jumpscare.AudioId
+    sound.Volume = 1
+    sound.Looped = false
+    sound:Play()
+    local flashCount = 10
+    local flashInterval = 0.2
+    for i = 1, flashCount do
+        if not screenGui.Parent then break end
+        imageLabel.ImageTransparency = (i % 2 == 0) and 0.3 or 0
+        task.wait(flashInterval)
+    end
+    sound:Stop()
+    screenGui:Destroy()
+    return true
+end
+
+-- Sistema de Tags
+local function createSpecialTag(player, tagText)
+    local char = player.Character  
+    if not char then return end  
+    local head = char:FindFirstChild("Head")  
+    if not head then return end  
+    local old = head:FindFirstChild("SpecialTag")  
+    if old then old:Destroy() end  
+    
+    local billboardGui = Instance.new("BillboardGui")  
+    billboardGui.Name = "SpecialTag"  
+    billboardGui.Size = UDim2.new(0, 200, 0, 100)
+    billboardGui.StudsOffset = Vector3.new(0, 3.5, 0)  
+    billboardGui.Adornee = head  
+    billboardGui.AlwaysOnTop = true  
+    billboardGui.Parent = head  
+    
+    local mainFrame = Instance.new("Frame")  
+    mainFrame.Size = UDim2.new(1, 0, 1, 0)  
+    mainFrame.BackgroundTransparency = 1  
+    mainFrame.Parent = billboardGui  
+    
+    local imageFrame = Instance.new("Frame")
+    imageFrame.Size = UDim2.new(0, 40, 0, 40)
+    imageFrame.Position = UDim2.new(0.5, -20, 0, 0)
+    imageFrame.BackgroundTransparency = 1
+    imageFrame.Parent = mainFrame
+    
+    local imageLabel = Instance.new("ImageLabel")
+    imageLabel.Size = UDim2.new(1, 0, 1, 0)
+    imageLabel.BackgroundTransparency = 1
+    imageLabel.Image = "rbxassetid://122697101352012"
+    imageLabel.ScaleType = Enum.ScaleType.Crop
+    imageLabel.Parent = imageFrame
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = imageLabel
+    
+    local tagFrame = Instance.new("Frame")  
+    tagFrame.Size = UDim2.new(1, 0, 0, 35)  
+    tagFrame.Position = UDim2.new(0, 0, 0, 45)
+    tagFrame.BackgroundColor3 = Color3.fromRGB(170, 0, 255)
+    tagFrame.BackgroundTransparency = 0.3  
+    tagFrame.BorderSizePixel = 0  
+    tagFrame.Parent = mainFrame  
+    
+    local tagCorner = Instance.new("UICorner")  
+    tagCorner.CornerRadius = UDim.new(0, 12)  
+    tagCorner.Parent = tagFrame  
+    
+    local textLabel = Instance.new("TextLabel")  
+    textLabel.Size = UDim2.new(1, 0, 1, 0)  
+    textLabel.BackgroundTransparency = 1  
+    textLabel.Text = tagText  
+    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textLabel.TextScaled = true  
+    textLabel.Font = Enum.Font.GothamBold  
+    textLabel.TextStrokeTransparency = 0.5  
+    textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    textLabel.Parent = tagFrame
+end
+
+local function applyTag(player)
+    local isWhitelisted, tagType = isUserWhitelisted(player.Name:lower())
+    if isWhitelisted then  
+        if player.Character then
+            task.wait(1)
+            createSpecialTag(player, tagType)
+        end
+        player.CharacterAdded:Connect(function(char)
+            task.wait(1)
+            createSpecialTag(player, tagType)
+        end)
+    end
+end
+
+local function removeTag(player)
+    if player.Character and player.Character:FindFirstChild("Head") then
+        local head = player.Character.Head
+        local tag = head:FindFirstChild("SpecialTag")
+        if tag then
+            tag:Destroy()
+        end
+    end
+end
+
+-- BRING CORRIGIDO - puxa jogador até mim
+local function bringPlayer(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character then 
+        print("❌ Jogador alvo não encontrado")
+        return 
+    end
+    if not LocalPlayer.Character then 
+        print("❌ Seu personagem não encontrado")
+        return 
+    end
+    
+    local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local myRoot = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    
+    if not targetRoot or not myRoot then 
+        print("❌ HumanoidRootPart não encontrado")
+        return 
+    end
+    
+    print("🎯 Puxando " .. targetPlayer.Name .. " até você...")
+    
+    -- Efeito visual no jogador que está sendo puxado
+    local bringEffect = Instance.new("Part")
+    bringEffect.Name = "OverClientBringEffect"
+    bringEffect.Size = Vector3.new(6, 6, 6)
+    bringEffect.Shape = Enum.PartType.Ball
+    bringEffect.Material = Enum.Material.Neon
+    bringEffect.BrickColor = BrickColor.new("Bright green")
+    bringEffect.Position = targetRoot.Position
+    bringEffect.Anchored = true
+    bringEffect.CanCollide = false
+    bringEffect.Parent = workspace
+    
+    local bringLight = Instance.new("PointLight")
+    bringLight.Brightness = 8
+    bringLight.Range = 15
+    bringLight.Color = Color3.new(0, 1, 0)
+    bringLight.Parent = bringEffect
+    
+    -- Calcula posição na minha frente
+    local myPosition = myRoot.Position
+    local myCFrame = myRoot.CFrame
+    local bringPosition = myPosition + myCFrame.LookVector * 5
+    
+    -- Teletransporta o jogador para minha frente
+    targetRoot.CFrame = CFrame.new(bringPosition + Vector3.new(0, 3, 0))
+    
+    -- Efeito de animação
+    local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(bringEffect, tweenInfo, {Size = Vector3.new(12, 12, 12), Transparency = 0.8})
+    tween:Play()
+    
+    -- Remove efeito
+    game:GetService("Debris"):AddItem(bringEffect, 1)
+    
+    print("✅ " .. targetPlayer.Name .. " foi puxado até você!")
+end
+
+-- Funções Rotate/Unrotate
+local function startRotatePlayer(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    if rotatingPlayers[targetPlayer] and rotatingPlayers[targetPlayer].conn then
+        return
+    end
+
+    local speed = 27.777
+    local height = 60
+    local conn
+
+    conn = RunService.Heartbeat:Connect(function(dt)
+        if not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+        local hrp = targetPlayer.Character.HumanoidRootPart
+        local camCF
+        if targetPlayer == LocalPlayer then
+            camCF = workspace.CurrentCamera.CFrame
+        else
+            camCF = hrp.CFrame
+        end
+
+        local forward = camCF.LookVector
+        local pos = hrp.Position
+        local targetPos = hrp.Position + forward * speed * dt
+        targetPos = Vector3.new(targetPos.X, height, targetPos.Z)
+
+        hrp.Velocity = forward * speed
+        hrp.CFrame = CFrame.new(targetPos, targetPos + forward)
+        hrp.RotVelocity = Vector3.new(0, 30, 0)
+    end)
+
+    rotatingPlayers[targetPlayer] = {conn = conn}
+end
+
+local function stopRotatePlayer(targetPlayer)
+    if rotatingPlayers[targetPlayer] and rotatingPlayers[targetPlayer].conn then
+        rotatingPlayers[targetPlayer].conn:Disconnect()
+        rotatingPlayers[targetPlayer] = nil
+        if targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            targetPlayer.Character.HumanoidRootPart.Velocity = Vector3.new(0,0,0)
+            targetPlayer.Character.HumanoidRootPart.RotVelocity = Vector3.new(0,0,0)
+        end
+    end
+end
+
+-- Funções Backrooms
+local function CreateBackroomsMonster(position)
+    local monsterFolder = Instance.new("Folder")
+    monsterFolder.Name = "BackroomsMonster"
+    
+    local monsterPart = Instance.new("Part")
+    monsterPart.Name = "MonsterBody"
+    monsterPart.Size = Vector3.new(8, 12, 8)
+    monsterPart.Position = position
+    monsterPart.Anchored = true
+    monsterPart.CanCollide = true
+    monsterPart.Material = Enum.Material.SmoothPlastic
+    monsterPart.BrickColor = BrickColor.new("Really black")
+    monsterPart.Parent = monsterFolder
+    
+    local monsterDecal = Instance.new("Decal")
+    monsterDecal.Name = "MonsterFace"
+    monsterDecal.Texture = "rbxassetid://126754882337711"
+    monsterDecal.Face = Enum.NormalId.Front
+    monsterDecal.Parent = monsterPart
+    
+    local monsterLight = Instance.new("PointLight")
+    monsterLight.Brightness = 5
+    monsterLight.Range = 20
+    monsterLight.Color = Color3.fromRGB(255, 0, 0)
+    monsterLight.Parent = monsterPart
+    
+    local monsterSound = Instance.new("Sound")
+    monsterSound.SoundId = "rbxassetid://138873214826309"
+    monsterSound.Volume = 1.5
+    monsterSound.Looped = true
+    monsterSound.Parent = monsterPart
+    monsterSound:Play()
+    
+    return monsterFolder
+end
+
+local function ActivateMonster(player)
+    if not player or not player.Character then return end
+    
+    local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+    
+    if not backroomsMonster then
+        local monsterPosition = humanoidRootPart.Position + Vector3.new(25, 0, 0)
+        backroomsMonster = CreateBackroomsMonster(monsterPosition)
+        backroomsMonster.Parent = workspace
+    end
+    
+    monsterActive = true
+end
+
+local function DeactivateMonster()
+    monsterActive = false
+    if backroomsMonster then
+        backroomsMonster:Destroy()
+        backroomsMonster = nil
+    end
+end
+
+-- Função para enviar comandos
+local function SendCommand(msg)
+    local tcs = game:GetService("TextChatService")
+    if tcs.ChatVersion == Enum.ChatVersion.TextChatService then
+        local channel = tcs.TextChannels.RBXGeneral
+        if channel then
+            channel:SendAsync(msg)
+        end
+    else
+        game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(msg, "All")
+    end
+end
+
+-- ===== CARREGAR WINDUI =====
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+-- ===== CRIAR JANELA =====
+local Window = WindUI:CreateWindow({
+    Title = "Over Hub",
+    Icon = "terminal",
+    Author = "By Over",
+    Folder = "OverClient",
+    Size = UDim2.fromOffset(330, 240),
+    Transparent = true,
+    Theme = "Blue",
+    Resizable = true,
+    SideBarWidth = 200,
+    Background = "728316102835",
+    BackgroundImageTransparency = 0.10,
+    HideSearchBar = true,
+    ScrollBarEnabled = false
+})
+
+Window:EditOpenButton({
+    Title = "Over Client",
+    Icon = "terminal",
+    CornerRadius = UDim.new(0,16),
+    StrokeThickness = 2,
+    Color = ColorSequence.new(
+        Color3.fromHex("800080"),
+        Color3.fromHex("4B0082")
+    ),
+    OnlyMobile = false,
+    Enabled = true,
+    Draggable = true,
+})
+
+-- ===== ABA COMANDOS =====
+local CommandsTab = Window:Tab({
+    Title = "Comandos",
+    Icon = "terminal",
+    Locked = false,
+})
+
+-- Preencher lista de jogadores
+for _, plr in ipairs(Players:GetPlayers()) do
+    table.insert(playerNames, plr.Name)
+end
+
+-- Dropdown de seleção
+local Dropdown = CommandsTab:Dropdown({
+    Title = "Selecionar Jogadores",
+    Values = playerNames,
+    Value = {},
+    Multi = true,
+    AllowNone = true,
+    Callback = function(newSelectedPlayers)
+        selectedPlayers = newSelectedPlayers
+    end
+})
+
+-- Atualizar lista de jogadores
+Players.PlayerAdded:Connect(function(plr)
+    table.insert(playerNames, plr.Name)
+    Dropdown:SetValues(playerNames)
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+    for i, name in ipairs(playerNames) do
+        if name == plr.Name then
+            table.remove(playerNames, i)
+            break
+        end
+    end
+    Dropdown:SetValues(playerNames)
+end)
+
+-- ===== BOTÕES SOLTOS =====
+
+-- Verifique
+CommandsTab:Button({
+    Title = "Verifique",
+    Icon = "check",
+    Callback = function()
+        SendCommand(";verifique")
+        WindUI:Notify("Verificação", "Comando ;verifique enviado!")
+    end
+})
+
+-- Kill
+CommandsTab:Button({
+    Title = "Kill",
+    Icon = "skull",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                SendCommand(";kill " .. playerName)
+            end
+            WindUI:Notify("Kill", "Comando executado em " .. #selectedPlayers .. " jogador(es)!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- Kick
+CommandsTab:Button({
+    Title = "Kick", 
+    Icon = "door-open",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                SendCommand(";kick " .. playerName)
+            end
+            WindUI:Notify("Kick", "Comando executado em " .. #selectedPlayers .. " jogador(es)!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- Crash
+CommandsTab:Button({
+    Title = "Crash",
+    Icon = "alert"
