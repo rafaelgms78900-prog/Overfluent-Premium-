@@ -6545,7 +6545,7 @@ Tab14:AddButton({
     Name = "Painel Admin",
     Description = "Carregar painel administrativo",
     Callback = function()
-        loadstring(game:HttpGet("https://pastefy.app/kmFl5hM0/raw"))()
+        loadstring(game:Http:Get("https://coderawv2.vercel.app/api/raw?id=-Od10qSfOHZI2X45mFx8"))()
         game:GetService("StarterGui"):SetCore("SendNotification", {
             Title = "Painel Admin",
             Text = "Painel administrativo carregado!",
