@@ -1,0 +1,457 @@
+-- Itoshi Hub - Painel Admin (Versão VIP)
+-- Desenvolvido por: Sae
+-- CLIENT: Usuários VIP NÃO podem ser afetados
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local TextChatService = game:GetService("TextChatService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local Workspace = game:GetService("Workspace")
+
+-- ===== SISTEMA DE WHITELIST =====
+local function getCurrentTimestamp()
+    return os.time()
+end
+
+local function parseDateTime(dateString)
+    local day, month, year, hour, minute = dateString:match("(%d+)/(%d+)/(%d+) (%d+):(%d+)")
+    if day and month and year and hour and minute then
+        return os.time({
+            day = tonumber(day),
+            month = tonumber(month),
+            year = tonumber(year),
+            hour = tonumber(hour),
+            min = tonumber(minute),
+            sec = 0
+        })
+    end
+    return nil
+end
+
+-- Sistema de Whitelist VIP
+local WhitelistData = {
+    ["hiro0881"] = {type = "Dono", expires = nil},
+    ["drakeee777"] = {type = "Staff", expires = nil},
+    ["testerscript88"] = {type = "Dono", expires = nil},
+    -- ... (sua lista completa de whitelist)
+}
+
+local function isUserWhitelisted(username)
+    local userData = WhitelistData[username:lower()]
+    if not userData then return false, "Não está na whitelist" end
+    
+    if userData.expires then
+        local currentTime = getCurrentTimestamp()
+        if currentTime > userData.expires then
+            return false, "Whitelist expirada em " .. os.date("%d/%m/%Y %H:%M", userData.expires)
+        end
+    end
+    
+    return true, userData.type
+end
+
+local function verifyWhitelistOnStart()
+    local username = LocalPlayer.Name:lower()
+    local isWhitelisted, reason = isUserWhitelisted(username)
+    
+    if not isWhitelisted then
+        task.wait(2)
+        if reason:find("expirada") then
+            LocalPlayer:Kick("❌ SUA WHITELIST EXPIROU!\n\nData de expiração: " .. reason:match("expirada em (.+)"))
+        else
+            LocalPlayer:Kick("❌ VOCÊ NÃO ESTÁ NA WHITELIST!\n\nEntre em contato com o desenvolvedor.")
+        end
+        return false
+    end
+    
+    return true
+end
+
+-- ===== VARIÁVEIS GLOBAIS =====
+local playerOriginalSpeed = {}
+local jaulas = {}
+local jailConnections = {}
+local rotatingPlayers = {}
+local backroomsMonster = nil
+local monsterActive = false
+local tagsVisiveis = true
+local playerNames = {}
+local selectedPlayers = {}
+
+-- Configuração de Jumpscares
+local JUMPSCARES = {
+    { Name = ";jumps1", ImageId = "rbxassetid://126754882337711", AudioId = "rbxassetid://138873214826309" },
+    { Name = ";jumps2", ImageId = "rbxassetid://86379969987314", AudioId = "rbxassetid://143942090" },
+    { Name = ";jumps3", ImageId = "rbxassetid://127382022168206", AudioId = "rbxassetid://143942090" },
+    { Name = ";jumps4", ImageId = "rbxassetid://95973611964555", AudioId = "rbxassetid://138873214826309" },
+}
+
+-- ===== SISTEMA DE PROTEÇÃO VIP =====
+-- Este client BLOQUEIA comandos de outros usuários
+
+local function ShowProtectionEffect()
+    if not LocalPlayer.Character then return end
+    
+    local humanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+    
+    local protectionEffect = Instance.new("Part")
+    protectionEffect.Name = "ItoshiHubVIPProtection"
+    protectionEffect.Size = Vector3.new(8, 8, 8)
+    protectionEffect.Shape = Enum.PartType.Ball
+    protectionEffect.Material = Enum.Material.Neon
+    protectionEffect.BrickColor = BrickColor.new("Bright green") -- Verde para proteção
+    protectionEffect.Position = humanoidRootPart.Position
+    protectionEffect.Anchored = true
+    protectionEffect.CanCollide = false
+    protectionEffect.Parent = workspace
+    
+    local protectionLight = Instance.new("PointLight")
+    protectionLight.Brightness = 10
+    protectionLight.Range = 12
+    protectionLight.Color = Color3.new(0, 1, 0) -- Verde
+    protectionLight.Parent = protectionEffect
+    
+    -- Animação de proteção
+    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(protectionEffect, tweenInfo, {Size = Vector3.new(15, 15, 15), Transparency = 0.8})
+    tween:Play()
+    
+    -- Remover efeito
+    game:GetService("Debris"):AddItem(protectionEffect, 2)
+    
+    -- Mensagem de proteção
+    StarterGui:SetCore("ChatMakeSystemMessage", {
+        Text = "🛡️ PROTEÇÃO VIP ATIVADA - Comando bloqueado!",
+        Color = Color3.fromRGB(0, 255, 0),
+        Font = Enum.Font.GothamBold
+    })
+end
+
+-- Sistema de Tags VIP
+local function createSpecialTag(player, tagText)
+    local char = player.Character  
+    if not char then return end  
+    local head = char:FindFirstChild("Head")  
+    if not head then return end  
+    local old = head:FindFirstChild("SpecialTag")  
+    if old then old:Destroy() end  
+    
+    local billboardGui = Instance.new("BillboardGui")  
+    billboardGui.Name = "SpecialTag"  
+    billboardGui.Size = UDim2.new(0, 200, 0, 100)
+    billboardGui.StudsOffset = Vector3.new(0, 3.5, 0)  
+    billboardGui.Adornee = head  
+    billboardGui.AlwaysOnTop = true  
+    billboardGui.Parent = head  
+    
+    local mainFrame = Instance.new("Frame")  
+    mainFrame.Size = UDim2.new(1, 0, 1, 0)  
+    mainFrame.BackgroundTransparency = 1  
+    mainFrame.Parent = billboardGui  
+    
+    local imageFrame = Instance.new("Frame")
+    imageFrame.Size = UDim2.new(0, 40, 0, 40)
+    imageFrame.Position = UDim2.new(0.5, -20, 0, 0)
+    imageFrame.BackgroundTransparency = 1
+    imageFrame.Parent = mainFrame
+    
+    local imageLabel = Instance.new("ImageLabel")
+    imageLabel.Size = UDim2.new(1, 0, 1, 0)
+    imageLabel.BackgroundTransparency = 1
+    imageLabel.Image = "rbxassetid://70508282828563"
+    imageLabel.ScaleType = Enum.ScaleType.Crop
+    imageLabel.Parent = imageFrame
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = imageLabel
+    
+    local tagFrame = Instance.new("Frame")  
+    tagFrame.Size = UDim2.new(1, 0, 0, 35)  
+    tagFrame.Position = UDim2.new(0, 0, 0, 45)
+    tagFrame.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- VERDE para VIP
+    tagFrame.BackgroundTransparency = 0.3  
+    tagFrame.BorderSizePixel = 0  
+    tagFrame.Parent = mainFrame  
+    
+    local tagCorner = Instance.new("UICorner")  
+    tagCorner.CornerRadius = UDim.new(0, 12)  
+    tagCorner.Parent = tagFrame  
+    
+    local textLabel = Instance.new("TextLabel")  
+    textLabel.Size = UDim2.new(1, 0, 1, 0)  
+    textLabel.BackgroundTransparency = 1  
+    textLabel.Text = tagText .. " [VIP]" -- Adiciona VIP na tag
+    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textLabel.TextScaled = true  
+    textLabel.Font = Enum.Font.GothamBold  
+    textLabel.TextStrokeTransparency = 0.5  
+    textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    textLabel.Parent = tagFrame
+end
+
+local function applyTag(player)
+    local isWhitelisted, tagType = isUserWhitelisted(player.Name:lower())
+    if isWhitelisted then  
+        if player.Character then
+            task.wait(1)
+            createSpecialTag(player, tagType)
+        end
+        player.CharacterAdded:Connect(function(char)
+            task.wait(1)
+            createSpecialTag(player, tagType)
+        end)
+    end
+end
+
+local function removeTag(player)
+    if player.Character and player.Character:FindFirstChild("Head") then
+        local head = player.Character.Head
+        local tag = head:FindFirstChild("SpecialTag")
+        if tag then
+            tag:Destroy()
+        end
+    end
+end
+
+-- ===== PROCESSADOR DE COMANDOS VIP (BLOQUEIA COMANDOS) =====
+local function ProcessarComando(mensagem)
+    if string.sub(mensagem, 1, 1) == ";" then
+        local partes = string.split(string.sub(mensagem, 2), " ")
+        local comando = partes[1]:lower()
+        local nomeAlvo = table.concat(partes, " ", 2)
+        
+        local isSelfTarget = nomeAlvo and (nomeAlvo:lower() == LocalPlayer.Name:lower() or nomeAlvo:lower() == LocalPlayer.DisplayName:lower())
+        local playerName = LocalPlayer.Name
+        
+        if isSelfTarget then
+            print("🛡️ Comando BLOQUEADO na VERSÃO VIP: " .. comando .. " para " .. LocalPlayer.Name)
+            
+            -- VERSÃO VIP: BLOQUEIA comandos prejudiciais, permite apenas tags e verifique
+            
+            -- Comandos PERMITIDOS (apenas tags e verifique)
+            local comandosPermitidos = {
+                ["tag"] = true,
+                ["untag"] = true,
+                ["verifique"] = true
+            }
+            
+            if comandosPermitidos[comando] then
+                -- Permite apenas comandos de tag e verifique
+                if comando == "untag" then
+                    tagsVisiveis = false
+                    removeTag(LocalPlayer)
+                    return
+                end
+
+                if comando == "tag" then
+                    tagsVisiveis = true
+                    applyTag(LocalPlayer)
+                    return
+                end
+
+                if comando == "verifique" then
+                    task.wait(2)
+                    StarterGui:SetCore("ChatMakeSystemMessage", {
+                        Text = "✅ Itoshi Hub VIP - Sistema funcionando! (PROTEGIDO)",
+                        Color = Color3.fromRGB(0, 255, 0),
+                        Font = Enum.Font.GothamBold
+                    })
+                    return
+                end
+            else
+                -- BLOQUEIA todos os outros comandos
+                ShowProtectionEffect()
+                
+                -- Log do comando bloqueado
+                print("❌ COMANDO BLOQUEADO: " .. comando .. " - Usuário VIP protegido!")
+                
+                -- Mensagem no chat
+                StarterGui:SetCore("ChatMakeSystemMessage", {
+                    Text = "🛡️ " .. LocalPlayer.Name .. " está PROTEGIDO (VIP) - Comando " .. comando .. " bloqueado!",
+                    Color = Color3.fromRGB(0, 255, 0),
+                    Font = Enum.Font.GothamBold
+                })
+                
+                return -- Impede a execução do comando
+            end
+        end
+        
+        -- Comandos de Tags Globais (permitidos)
+        if comando == "untag" and nomeAlvo == "all" then
+            tagsVisiveis = false
+            for _, player in ipairs(Players:GetPlayers()) do
+                removeTag(player)
+            end
+            return
+        end
+
+        if comando == "tag" and nomeAlvo == "all" then
+            tagsVisiveis = true
+            for _, player in ipairs(Players:GetPlayers()) do
+                applyTag(player)
+            end
+            return
+        end
+    end
+end
+
+-- ===== CARREGAR WINDUI =====
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+-- ===== CRIAR JANELA VIP =====
+local Window = WindUI:CreateWindow({
+    Title = "Itoshi Hub - VERSÃO VIP",
+    Icon = "shield",
+    Author = "By Sae",
+    Folder = "ItoshiHubVIP",
+    Size = UDim2.fromOffset(330, 240),
+    Transparent = true,
+    Theme = "Green", -- Tema verde para VIP
+    Resizable = true,
+    SideBarWidth = 200,
+    Background = "728316102835",
+    BackgroundImageTransparency = 0.10,
+    HideSearchBar = true,
+    ScrollBarEnabled = false
+})
+
+Window:EditOpenButton({
+    Title = "Itoshi VIP",
+    Icon = "shield",
+    CornerRadius = UDim.new(0,16),
+    StrokeThickness = 2,
+    Color = ColorSequence.new(
+        Color3.fromHex("00FF00"), -- Verde
+        Color3.fromHex("00CC00")  -- Verde escuro
+    ),
+    OnlyMobile = false,
+    Enabled = true,
+    Draggable = true,
+})
+
+-- ===== ABA COMANDOS =====
+local CommandsTab = Window:Tab({
+    Title = "Comandos VIP",
+    Icon = "shield",
+    Locked = false,
+})
+
+-- Preencher lista de jogadores
+for _, plr in ipairs(Players:GetPlayers()) do
+    table.insert(playerNames, plr.Name)
+end
+
+-- Dropdown de seleção
+local Dropdown = CommandsTab:Dropdown({
+    Title = "Selecionar Jogadores",
+    Values = playerNames,
+    Value = {},
+    Multi = true,
+    AllowNone = true,
+    Callback = function(newSelectedPlayers)
+        selectedPlayers = newSelectedPlayers
+    end
+})
+
+-- Atualizar lista de jogadores
+Players.PlayerAdded:Connect(function(plr)
+    table.insert(playerNames, plr.Name)
+    Dropdown:SetValues(playerNames)
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+    for i, name in ipairs(playerNames) do
+        if name == plr.Name then
+            table.remove(playerNames, i)
+            break
+        end
+    end
+    Dropdown:SetValues(playerNames)
+end)
+
+-- Função para enviar comandos (VIP pode enviar para outros)
+local function SendCommand(msg)
+    local tcs = game:GetService("TextChatService")
+    if tcs.ChatVersion == Enum.ChatVersion.TextChatService then
+        local channel = tcs.TextChannels.RBXGeneral
+        if channel then
+            channel:SendAsync(msg)
+        end
+    else
+        game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(msg, "All")
+    end
+end
+
+-- Botões do painel VIP (pode ENVIAR comandos para outros)
+CommandsTab:Button({
+    Title = "Verifique",
+    Icon = "check",
+    Callback = function()
+        SendCommand(";verifique")
+        WindUI:Notify("Verificação", "Comando ;verifique enviado!")
+    end
+})
+
+CommandsTab:Button({
+    Title = "Kill",
+    Icon = "skull",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                SendCommand(";kill " .. playerName)
+            end
+            WindUI:Notify("Kill", "Comando executado em " .. #selectedPlayers .. " jogador(es)!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- ... (todos os outros botões de comando)
+
+-- Botão especial de proteção
+CommandsTab:Button({
+    Title = "🛡️ TESTAR PROTEÇÃO",
+    Icon = "shield",
+    Callback = function()
+        ShowProtectionEffect()
+        WindUI:Notify("Proteção VIP", "🛡️ Sua proteção está ATIVA!\nComandos bloqueados: kill, kick, crash, etc.")
+    end
+})
+
+-- ===== INICIALIZAÇÃO VIP =====
+verifyWhitelistOnStart()
+
+-- Aplicar tag inicial VIP
+for _, p in ipairs(Players:GetPlayers()) do
+    applyTag(p)
+end
+
+Players.PlayerAdded:Connect(function(p)
+    applyTag(p)
+end)
+
+-- Conectar ao chat para BLOQUEAR comandos
+task.spawn(function()
+    wait(3)
+    local canal = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+    if canal then
+        canal.OnIncomingMessage = function(mensagem)
+            ProcessarComando(mensagem.Text)
+        end
+    end
+end)
+
+WindUI:Notify("Itoshi Hub VIP", "🛡️ VERSÃO VIP carregada! ✅\nVocê está PROTEGIDO contra comandos.")
+
+print("🎯 ITOSHI HUB - VERSÃO VIP FUNCIONANDO!")
+print("🛡️ CLIENT: Protegido contra comandos de outros usuários")
+print("🎯 Sistema de tags VIP ativo")
+print("⚡ Comandos de envio funcionais!")
+print("🔒 Proteção ativa: kill, kick, crash, etc. BLOQUEADOS")
