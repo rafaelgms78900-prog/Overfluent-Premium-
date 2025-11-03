@@ -1,0 +1,1459 @@
+-- Itoshi Hub - Painel Admin
+-- Desenvolvido por: Sae
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local TextChatService = game:GetService("TextChatService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local Workspace = game:GetService("Workspace")
+
+-- ===== SISTEMA DE WHITELIST =====
+local function getCurrentTimestamp()
+    return os.time()
+end
+
+local function parseDateTime(dateString)
+    -- Formato: "dd/mm/aaaa hh:mm"
+    local day, month, year, hour, minute = dateString:match("(%d+)/(%d+)/(%d+) (%d+):(%d+)")
+    if day and month and year and hour and minute then
+        return os.time({
+            day = tonumber(day),
+            month = tonumber(month),
+            year = tonumber(year),
+            hour = tonumber(hour),
+            min = tonumber(minute),
+            sec = 0
+        })
+    end
+    return nil
+end
+
+-- Sistema de Whitelist com Expiração
+local WhitelistData = {
+    -- Donos (sem expiração)
+    ["hiro0881"] = {type = "Dono", expires = nil},
+    ["drakeee777"] = {type = "Staff", expires = nil},
+    ["testerscript88"] = {type = "Dono", expires = nil},
+    ["rmss_2012"] = {type = "Staff", expires = nil},
+    ["eltulio69"] = {type = "usuario adm", expires = nil},
+    ["covefred"] = {type = "usuario adm", expires = nil},
+    ["goku_blackpao"] = {type = "usuario adm", expires = nil},
+    ["miuuq_333"] = {type = "usuario adm", expires = nil},
+    ["renegado_688"] = {type = "usuario adm", expires = nil},
+    ["pie_56769"] = {type = "usuario adm", expires = nil},
+    ["rafaelgms7810396"] = {type = "sae itoshi", expires = nil},
+    ["braiozinho2020"] = {type = "staff", expires = nil},
+    ["posturado1518"] = {type = "staff", expires = nil},
+    
+    -- Usuários ADM com expiração
+    ["cartolahub7"] = {type = "Usuário adm", expires = parseDateTime("15/12/2030 23:59")},
+    ["misterio_zeusmod"] = {type = "Usuário adm", expires = parseDateTime("15/04/2026 23:59")},
+    ["caiozn7_669"] = {type = "Usuário adm", expires = parseDateTime("15/12/2030 23:59")},
+    ["donarzissus"] = {type = "Usuário adm", expires = parseDateTime("15/12/2030 23:59")},
+    ["vampzinkkj_1"] = {type = "Usuário adm", expires = parseDateTime("15/12/2030 23:59")},
+    ["ppyszt"] = {type = "Usuário adm", expires = parseDateTime("7/01/2026 18:30")},
+    ["pedro_roneido"] = {type = "Usuário adm", expires = parseDateTime("10/01/2030 12:00")},
+    ["pedro_roneido20"] = {type = "Usuário adm", expires = parseDateTime("10/01/2030 12:00")},
+    ["ixi362"] = {type = "Usuário adm", expires = parseDateTime("05/01/2030 15:45")},
+    ["jifhgiu"] = {type = "Usuário adm", expires = parseDateTime("25/12/2030 20:00")},
+    ["piloto158d"] = {type = "Usuário adm", expires = parseDateTime("30/12/2030 14:20")},
+    ["rafaelgms7810396"] = {type = "sae itoshi", expires = parseDateTime("25/12/2030 20:00")},
+    ["ilu1_22"] = {type = "Usuário adm", expires = parseDateTime("08/01/2030 10:30")},
+    ["xmarcelo_27262"] = {type = "Usuário adm", expires = parseDateTime("12/01/2030 16:15")},
+    ["ryansididd"] = {type = "Usuário adm", expires = parseDateTime("03/01/2030 09:00")},
+    ["redz_hub99975"] = {type = "Usuário adm", expires = parseDateTime("28/12/2030 22:45")},
+    ["teteu0902201mc"] = {type = "Usuário adm", expires = parseDateTime("15/01/2030 11:30")},
+    ["amongus23445844sad"] = {type = "Usuário adm", expires = parseDateTime("18/12/2030 19:20")},
+    ["ttyyryjuh"] = {type = "Usuário adm", expires = parseDateTime("22/12/2030 13:10")},
+    ["kevin_oliverra10"] = {type = "Usuário adm", expires = parseDateTime("07/01/2030 17:40")},
+    ["drakeee777"] = {type = "dono", expires = parseDateTime("29/12/2030 21:15")},
+    ["eduard0k0"] = {type = "Usuário adm", expires = parseDateTime("14/01/2030 08:50")},
+    ["gh707080s"] = {type = "Usuário adm", expires = parseDateTime("31/12/2030 23:59")},
+    ["luroblox1262"] = {type = "Usuário adm", expires = parseDateTime("06/01/2030 14:25")},
+    ["bonasamigo"] = {type = "Usuário adm", expires = parseDateTime("19/10/2030 14:30")},
+    ["manopp72"] = {type = "Usuário adm", expires = parseDateTime("25/10/2025 18:40")},
+    ["zack_89901"] = {type = "Usuário adm", expires = parseDateTime("25/10/2025 18:40")},
+    ["rackffr9"] = {type = "Usuário add", expires = parseDateTime("20/11/2025 18:40")},
+    ["oibuto7"] = {type = "Usuário add", expires = parseDateTime("31/10/2025 14:40")},
+    ["ensisbsjbrhe"] = {type = "Usuário add", expires = parseDateTime("09/10/2030 19:40")},
+    ["gui_neh1023"] = {type = "Usuário add", expires = parseDateTime("09/10/2030 19:40")},
+    ["killert_494"] = {type = "Usuário add", expires = parseDateTime("09/10/2030 19:40")},
+}
+
+-- Função para verificar se usuário está na whitelist e não expirou
+local function isUserWhitelisted(username)
+    local userData = WhitelistData[username:lower()]
+    if not userData then
+        return false, "Não está na whitelist"
+    end
+    
+    -- Verificar expiração
+    if userData.expires then
+        local currentTime = getCurrentTimestamp()
+        if currentTime > userData.expires then
+            return false, "Whitelist expirada em " .. os.date("%d/%m/%Y %H:%M", userData.expires)
+        end
+    end
+    
+    return true, userData.type
+end
+
+-- VERIFICAÇÃO INICIAL - Se não estiver na whitelist ou expirou, kicka imediatamente
+local function verifyWhitelistOnStart()
+    local username = LocalPlayer.Name:lower()
+    local isWhitelisted, reason = isUserWhitelisted(username)
+    
+    if not isWhitelisted then
+        -- Espera um pouco para carregar e depois kicka
+        task.wait(2)
+        if reason:find("expirada") then
+            LocalPlayer:Kick("❌ SUA WHITELIST EXPIROU!\n\nData de expiração: " .. reason:match("expirada em (.+)"))
+        else
+            LocalPlayer:Kick("❌ VOCÊ NÃO ESTÁ NA WHITELIST!\n\nEntre em contato com o desenvolvedor.")
+        end
+        return false
+    end
+    
+    return true
+end
+
+-- ===== VARIÁVEIS GLOBAIS =====
+local playerOriginalSpeed = {}
+local jaulas = {}
+local jailConnections = {}
+local rotatingPlayers = {}
+local backroomsMonster = nil
+local monsterActive = false
+local tagsVisiveis = true
+local playerNames = {}
+local selectedPlayers = {}
+
+-- Configuração de Jumpscares
+local JUMPSCARES = {
+    { Name = ";jumps1", ImageId = "rbxassetid://126754882337711", AudioId = "rbxassetid://138873214826309" },
+    { Name = ";jumps2", ImageId = "rbxassetid://86379969987314", AudioId = "rbxassetid://143942090" },
+    { Name = ";jumps3", ImageId = "rbxassetid://127382022168206", AudioId = "rbxassetid://143942090" },
+    { Name = ";jumps4", ImageId = "rbxassetid://95973611964555", AudioId = "rbxassetid://138873214826309" },
+}
+
+-- ===== FUNÇÕES DO SISTEMA =====
+
+-- Função Jumpscare
+local function TriggerJumpscare(player, jumpscare)
+    if not player or player ~= LocalPlayer then return false end
+    local screenGui = Instance.new("ScreenGui", CoreGui)
+    screenGui.Name = "JumpscareGui"
+    screenGui.IgnoreGuiInset = true
+    local imageLabel = Instance.new("ImageLabel", screenGui)
+    imageLabel.Size = UDim2.new(1, 0, 1, 0)
+    imageLabel.Position = UDim2.new(0, 0, 0, 0)
+    imageLabel.BackgroundTransparency = 1
+    imageLabel.Image = jumpscare.ImageId
+    local sound = Instance.new("Sound", screenGui)
+    sound.SoundId = jumpscare.AudioId
+    sound.Volume = 1
+    sound.Looped = false
+    sound:Play()
+    local flashCount = 10
+    local flashInterval = 0.2
+    for i = 1, flashCount do
+        if not screenGui.Parent then break end
+        imageLabel.ImageTransparency = (i % 2 == 0) and 0.3 or 0
+        task.wait(flashInterval)
+    end
+    sound:Stop()
+    screenGui:Destroy()
+    return true
+end
+
+-- Sistema de Tags
+local function createSpecialTag(player, tagText)
+    local char = player.Character  
+    if not char then return end  
+    local head = char:FindFirstChild("Head")  
+    if not head then return end  
+    local old = head:FindFirstChild("SpecialTag")  
+    if old then old:Destroy() end  
+    
+    local billboardGui = Instance.new("BillboardGui")  
+    billboardGui.Name = "SpecialTag"  
+    billboardGui.Size = UDim2.new(0, 200, 0, 100)
+    billboardGui.StudsOffset = Vector3.new(0, 3.5, 0)  
+    billboardGui.Adornee = head  
+    billboardGui.AlwaysOnTop = true  
+    billboardGui.Parent = head  
+    
+    local mainFrame = Instance.new("Frame")  
+    mainFrame.Size = UDim2.new(1, 0, 1, 0)  
+    mainFrame.BackgroundTransparency = 1  
+    mainFrame.Parent = billboardGui  
+    
+    local imageFrame = Instance.new("Frame")
+    imageFrame.Size = UDim2.new(0, 40, 0, 40)
+    imageFrame.Position = UDim2.new(0.5, -20, 0, 0)
+    imageFrame.BackgroundTransparency = 1
+    imageFrame.Parent = mainFrame
+    
+    local imageLabel = Instance.new("ImageLabel")
+    imageLabel.Size = UDim2.new(1, 0, 1, 0)
+    imageLabel.BackgroundTransparency = 1
+    imageLabel.Image = "rbxassetid://70508282828563"  -- Seu adesivo do Sae Itoshi
+    imageLabel.ScaleType = Enum.ScaleType.Crop
+    imageLabel.Parent = imageFrame
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = imageLabel
+    
+    local tagFrame = Instance.new("Frame")  
+    tagFrame.Size = UDim2.new(1, 0, 0, 35)  
+    tagFrame.Position = UDim2.new(0, 0, 0, 45)
+    tagFrame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)  -- Vermelho
+    tagFrame.BackgroundTransparency = 0.3  
+    tagFrame.BorderSizePixel = 0  
+    tagFrame.Parent = mainFrame  
+    
+    local tagCorner = Instance.new("UICorner")  
+    tagCorner.CornerRadius = UDim.new(0, 12)  
+    tagCorner.Parent = tagFrame  
+    
+    local textLabel = Instance.new("TextLabel")  
+    textLabel.Size = UDim2.new(1, 0, 1, 0)  
+    textLabel.BackgroundTransparency = 1  
+    textLabel.Text = tagText  
+    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textLabel.TextScaled = true  
+    textLabel.Font = Enum.Font.GothamBold  
+    textLabel.TextStrokeTransparency = 0.5  
+    textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    textLabel.Parent = tagFrame
+end
+
+local function applyTag(player)
+    local isWhitelisted, tagType = isUserWhitelisted(player.Name:lower())
+    if isWhitelisted then  
+        if player.Character then
+            task.wait(1)
+            createSpecialTag(player, tagType)
+        end
+        player.CharacterAdded:Connect(function(char)
+            task.wait(1)
+            createSpecialTag(player, tagType)
+        end)
+    end
+end
+
+local function removeTag(player)
+    if player.Character and player.Character:FindFirstChild("Head") then
+        local head = player.Character.Head
+        local tag = head:FindFirstChild("SpecialTag")
+        if tag then
+            tag:Destroy()
+        end
+    end
+end
+
+-- BRING CORRIGIDO - puxa jogador até mim
+local function bringPlayer(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character then 
+        print("❌ Jogador alvo não encontrado")
+        return 
+    end
+    if not LocalPlayer.Character then 
+        print("❌ Seu personagem não encontrado")
+        return 
+    end
+    
+    local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local myRoot = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    
+    if not targetRoot or not myRoot then 
+        print("❌ HumanoidRootPart não encontrado")
+        return 
+    end
+    
+    print("🎯 Puxando " .. targetPlayer.Name .. " até você...")
+    
+    -- Efeito visual no jogador que está sendo puxado
+    local bringEffect = Instance.new("Part")
+    bringEffect.Name = "ItoshiHubBringEffect"
+    bringEffect.Size = Vector3.new(6, 6, 6)
+    bringEffect.Shape = Enum.PartType.Ball
+    bringEffect.Material = Enum.Material.Neon
+    bringEffect.BrickColor = BrickColor.new("Bright red")  -- Vermelho
+    bringEffect.Position = targetRoot.Position
+    bringEffect.Anchored = true
+    bringEffect.CanCollide = false
+    bringEffect.Parent = workspace
+    
+    local bringLight = Instance.new("PointLight")
+    bringLight.Brightness = 8
+    bringLight.Range = 15
+    bringLight.Color = Color3.new(1, 0, 0)  -- Vermelho
+    bringLight.Parent = bringEffect
+    
+    -- Calcula posição na minha frente
+    local myPosition = myRoot.Position
+    local myCFrame = myRoot.CFrame
+    local bringPosition = myPosition + myCFrame.LookVector * 5
+    
+    -- Teletransporta o jogador para minha frente
+    targetRoot.CFrame = CFrame.new(bringPosition + Vector3.new(0, 3, 0))
+    
+    -- Efeito de animação
+    local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(bringEffect, tweenInfo, {Size = Vector3.new(12, 12, 12), Transparency = 0.8})
+    tween:Play()
+    
+    -- Remove efeito
+    game:GetService("Debris"):AddItem(bringEffect, 1)
+    
+    print("✅ " .. targetPlayer.Name .. " foi puxado até você!")
+end
+
+-- Funções Rotate/Unrotate
+local function startRotatePlayer(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    if rotatingPlayers[targetPlayer] and rotatingPlayers[targetPlayer].conn then
+        return
+    end
+
+    local speed = 27.777
+    local height = 60
+    local conn
+
+    conn = RunService.Heartbeat:Connect(function(dt)
+        if not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+        local hrp = targetPlayer.Character.HumanoidRootPart
+        local camCF
+        if targetPlayer == LocalPlayer then
+            camCF = workspace.CurrentCamera.CFrame
+        else
+            camCF = hrp.CFrame
+        end
+
+        local forward = camCF.LookVector
+        local pos = hrp.Position
+        local targetPos = hrp.Position + forward * speed * dt
+        targetPos = Vector3.new(targetPos.X, height, targetPos.Z)
+
+        hrp.Velocity = forward * speed
+        hrp.CFrame = CFrame.new(targetPos, targetPos + forward)
+        hrp.RotVelocity = Vector3.new(0, 30, 0)
+    end)
+
+    rotatingPlayers[targetPlayer] = {conn = conn}
+end
+
+local function stopRotatePlayer(targetPlayer)
+    if rotatingPlayers[targetPlayer] and rotatingPlayers[targetPlayer].conn then
+        rotatingPlayers[targetPlayer].conn:Disconnect()
+        rotatingPlayers[targetPlayer] = nil
+        if targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            targetPlayer.Character.HumanoidRootPart.Velocity = Vector3.new(0,0,0)
+            targetPlayer.Character.HumanoidRootPart.RotVelocity = Vector3.new(0,0,0)
+        end
+    end
+end
+
+-- ===== SISTEMA BACKROOMS COMPLETO =====
+local function CreateBackroomsMonster(position)
+    local monsterFolder = Instance.new("Folder")
+    monsterFolder.Name = "BackroomsMonster"
+    
+    local monsterPart = Instance.new("Part")
+    monsterPart.Name = "MonsterBody"
+    monsterPart.Size = Vector3.new(8, 12, 8)
+    monsterPart.Position = position
+    monsterPart.Anchored = true
+    monsterPart.CanCollide = true
+    monsterPart.Material = Enum.Material.SmoothPlastic
+    monsterPart.BrickColor = BrickColor.new("Really black")
+    monsterPart.Parent = monsterFolder
+    
+    local monsterDecal = Instance.new("Decal")
+    monsterDecal.Name = "MonsterFace"
+    monsterDecal.Texture = "rbxassetid://126754882337711"
+    monsterDecal.Face = Enum.NormalId.Front
+    monsterDecal.Parent = monsterPart
+    
+    local decalBack = Instance.new("Decal")
+    decalBack.Texture = "rbxassetid://126754882337711"
+    decalBack.Face = Enum.NormalId.Back
+    decalBack.Parent = monsterPart
+    
+    local decalLeft = Instance.new("Decal")
+    decalLeft.Texture = "rbxassetid://126754882337711"
+    decalLeft.Face = Enum.NormalId.Left
+    decalLeft.Parent = monsterPart
+    
+    local decalRight = Instance.new("Decal")
+    decalRight.Texture = "rbxassetid://126754882337711"
+    decalRight.Face = Enum.NormalId.Right
+    decalRight.Parent = monsterPart
+    
+    local monsterLight = Instance.new("PointLight")
+    monsterLight.Brightness = 5
+    monsterLight.Range = 20
+    monsterLight.Color = Color3.fromRGB(255, 0, 0)
+    monsterLight.Parent = monsterPart
+    
+    local smokeParticles = Instance.new("ParticleEmitter")
+    smokeParticles.Texture = "rbxassetid://243664672"
+    smokeParticles.Lifetime = NumberRange.new(1, 3)
+    smokeParticles.Rate = 25
+    smokeParticles.SpreadAngle = Vector2.new(45, 45)
+    smokeParticles.Speed = NumberRange.new(2, 4)
+    smokeParticles.Color = ColorSequence.new(Color3.fromRGB(255, 0, 0))
+    smokeParticles.Transparency = NumberSequence.new(0.3, 0.8)
+    smokeParticles.Size = NumberSequence.new(1, 3)
+    smokeParticles.Parent = monsterPart
+    
+    local monsterSound = Instance.new("Sound")
+    monsterSound.SoundId = "rbxassetid://138873214826309"
+    monsterSound.Volume = 1.5
+    monsterSound.Looped = true
+    monsterSound.Parent = monsterPart
+    monsterSound:Play()
+    
+    coroutine.wrap(function()
+        while monsterPart.Parent do
+            monsterLight.Brightness = 8
+            wait(0.5)
+            monsterLight.Brightness = 3
+            wait(0.5)
+        end
+    end)()
+    
+    return monsterFolder
+end
+
+local function ActivateMonster(player)
+    if not player or not player.Character then return end
+    
+    local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+    
+    if not backroomsMonster then
+        local monsterPosition = humanoidRootPart.Position + Vector3.new(25, 0, 0)
+        backroomsMonster = CreateBackroomsMonster(monsterPosition)
+        backroomsMonster.Parent = workspace
+    end
+    
+    monsterActive = true
+    
+    local monsterBody = backroomsMonster:FindFirstChild("MonsterBody")
+    if not monsterBody then return end
+    
+    task.wait(2)
+    
+    -- Jumpscare inicial
+    local screenGui = Instance.new("ScreenGui", CoreGui)
+    screenGui.Name = "MonsterJumpscare"
+    screenGui.IgnoreGuiInset = true
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    local imageLabel = Instance.new("ImageLabel", screenGui)
+    imageLabel.Size = UDim2.new(1, 0, 1, 0)
+    imageLabel.Position = UDim2.new(0, 0, 0, 0)
+    imageLabel.BackgroundColor3 = Color3.new(0, 0, 0)
+    imageLabel.BackgroundTransparency = 0
+    imageLabel.Image = "rbxassetid://126754882337711"
+    imageLabel.ScaleType = Enum.ScaleType.Fit
+    imageLabel.ImageTransparency = 1
+    
+    local scareSound = Instance.new("Sound")
+    scareSound.SoundId = "rbxassetid://138873214826309"
+    scareSound.Volume = 2.5
+    scareSound.Looped = false
+    scareSound.Parent = screenGui
+    
+    coroutine.wrap(function()
+        imageLabel.ImageTransparency = 0
+        scareSound:Play()
+        
+        for i = 1, 6 do
+            imageLabel.Size = UDim2.new(1.1, 0, 1.1, 0)
+            wait(0.1)
+            imageLabel.Size = UDim2.new(1, 0, 1, 0)
+            wait(0.1)
+        end
+        
+        for i = 1, 10 do
+            imageLabel.ImageTransparency = i / 10
+            wait(0.05)
+        end
+        
+        scareSound:Stop()
+        screenGui:Destroy()
+    end)()
+    
+    StarterGui:SetCore("ChatMakeSystemMessage", {
+        Text = "👾 O MONSTRO DAS BACKROOMS TE VIU! FUJA!",
+        Color = Color3.fromRGB(255, 0, 0),
+        Font = Enum.Font.GothamBold
+    })
+    
+    -- Sistema de perseguição
+    while monsterActive and player.Character and player.Character:FindFirstChild("HumanoidRootPart") do
+        local playerPos = player.Character.HumanoidRootPart.Position
+        local monsterPos = monsterBody.Position
+        
+        local direction = (playerPos - monsterPos).Unit
+        local newPosition = monsterPos + (direction * 2.5)
+        
+        monsterBody.Position = newPosition
+        monsterBody.CFrame = CFrame.new(newPosition, playerPos)
+        
+        if (playerPos - newPosition).Magnitude < 8 then
+            local killEffect = Instance.new("Part")
+            killEffect.Size = Vector3.new(10, 10, 10)
+            killEffect.Position = playerPos
+            killEffect.Anchored = true
+            killEffect.CanCollide = false
+            killEffect.Material = Enum.Material.Neon
+            killEffect.BrickColor = BrickColor.new("Really red")
+            killEffect.Transparency = 0.7
+            killEffect.Parent = workspace
+            
+            local killLight = Instance.new("PointLight")
+            killLight.Brightness = 15
+            killLight.Range = 15
+            killLight.Color = Color3.fromRGB(255, 0, 0)
+            killLight.Parent = killEffect
+            
+            if player.Character then
+                player.Character:BreakJoints()
+                
+                local deathSound = Instance.new("Sound")
+                deathSound.SoundId = "rbxassetid://143942090"
+                deathSound.Volume = 1.5
+                deathSound.Parent = workspace
+                deathSound:Play()
+                
+                game:GetService("Debris"):AddItem(deathSound, 3)
+                game:GetService("Debris"):AddItem(killEffect, 2)
+                
+                StarterGui:SetCore("ChatMakeSystemMessage", {
+                    Text = "👾 O MONSTRO DAS BACKROOMS TE PEGOU! VOCÊ MORREU!",
+                    Color = Color3.fromRGB(255, 0, 0),
+                    Font = Enum.Font.GothamBold
+                })
+                
+                break
+            end
+        end
+        
+        wait(0.1)
+    end
+end
+
+local function DeactivateMonster()
+    monsterActive = false
+    if backroomsMonster then
+        backroomsMonster:Destroy()
+        backroomsMonster = nil
+    end
+end
+
+local function CreateBackrooms()
+    local backroomsFolder = workspace:FindFirstChild("ItoshiHub_Backrooms")
+    if backroomsFolder then
+        backroomsFolder:Destroy()
+    end
+    
+    backroomsFolder = Instance.new("Folder")
+    backroomsFolder.Name = "ItoshiHub_Backrooms"
+    backroomsFolder.Parent = workspace
+    
+    -- Carregar mapa das Backrooms (ID: 10581711055)
+    local mapID = 10581711055
+    local distantPosition = Vector3.new(0, 10000, 0)
+    local teleportPosition = Vector3.new(59.06, 9996.70, 19.42)
+    
+    local success, mapa = pcall(function()
+        return game:GetObjects("rbxassetid://"..mapID)[1]
+    end)
+    
+    if success and mapa then
+        mapa.Parent = backroomsFolder
+        mapa.Name = "BackroomsMap"
+        
+        if not mapa.PrimaryPart then
+            local part = mapa:FindFirstChildWhichIsA("BasePart")
+            if part then 
+                mapa.PrimaryPart = part 
+            end
+        end
+        
+        if mapa.PrimaryPart then
+            mapa:SetPrimaryPartCFrame(CFrame.new(distantPosition))
+        else
+            for _, part in ipairs(mapa:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Position = part.Position + distantPosition
+                end
+            end
+        end
+        
+        -- Aplicar iluminação das backrooms
+        local lighting = game:GetService("Lighting")
+        lighting.Brightness = 0.6
+        lighting.Ambient = Color3.fromRGB(255, 200, 100)
+        lighting.OutdoorAmbient = Color3.fromRGB(255, 200, 100)
+        lighting.FogColor = Color3.fromRGB(255, 200, 100)
+        lighting.FogEnd = 250
+        lighting.FogStart = 50
+        
+        -- Adicionar efeitos sonoros
+        local humSound = Instance.new("Sound")
+        humSound.SoundId = "rbxassetid://9114825996"
+        humSound.Volume = 0.6
+        humSound.Looped = true
+        humSound.Parent = backroomsFolder
+        humSound:Play()
+        
+        return backroomsFolder, teleportPosition
+    else
+        -- Fallback: criar backrooms manualmente
+        local basePosition = Vector3.new(0, -500, 0)
+        local roomSize = 100
+        local wallHeight = 20
+        
+        local function createRoom(roomPosition, roomName)
+            local roomFolder = Instance.new("Folder")
+            roomFolder.Name = roomName
+            roomFolder.Parent = backroomsFolder
+            
+            local function createWall(position, size, name)
+                local wall = Instance.new("Part")
+                wall.Name = name
+                wall.Size = size
+                wall.Position = roomPosition + position
+                wall.Anchored = true
+                wall.CanCollide = true
+                wall.Material = Enum.Material.Plastic
+                wall.BrickColor = BrickColor.new("Br. yellowish orange")
+                wall.Parent = roomFolder
+                return wall
+            end
+            
+            local floor = createWall(Vector3.new(0, 0, 0), Vector3.new(roomSize, 1, roomSize), "Floor")
+            
+            local ceiling = createWall(Vector3.new(0, wallHeight, 0), Vector3.new(roomSize, 1, roomSize), "Ceiling")
+            ceiling.BrickColor = BrickColor.new("Dark orange")
+            
+            createWall(Vector3.new(-roomSize/2, wallHeight/2, 0), Vector3.new(2, wallHeight, roomSize), "WestWall")
+            createWall(Vector3.new(roomSize/2, wallHeight/2, 0), Vector3.new(2, wallHeight, roomSize), "EastWall")
+            createWall(Vector3.new(0, wallHeight/2, -roomSize/2), Vector3.new(roomSize, wallHeight, 2), "NorthWall")
+            createWall(Vector3.new(0, wallHeight/2, roomSize/2), Vector3.new(roomSize, wallHeight, 2), "SouthWall")
+            
+            return roomFolder
+        end
+        
+        local centralRoom = createRoom(basePosition, "CentralRoom")
+        teleportPosition = basePosition + Vector3.new(0, 5, 0)
+        
+        return backroomsFolder, teleportPosition
+    end
+end
+
+local function TeleportToBackrooms(player)
+    if not player or not player.Character then
+        return false
+    end
+    
+    local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then
+        return false
+    end
+    
+    -- Criar backrooms
+    local backroomsFolder, spawnPosition = CreateBackrooms()
+    
+    -- Efeito visual de transição
+    local transitionEffect = Instance.new("Part")
+    transitionEffect.Name = "BackroomsTransition"
+    transitionEffect.Size = Vector3.new(8, 8, 8)
+    transitionEffect.Position = humanoidRootPart.Position
+    transitionEffect.Anchored = true
+    transitionEffect.CanCollide = false
+    transitionEffect.Material = Enum.Material.Neon
+    transitionEffect.BrickColor = BrickColor.new("Bright yellow")
+    transitionEffect.Transparency = 0.3
+    transitionEffect.Parent = workspace
+    
+    local transitionLight = Instance.new("PointLight")
+    transitionLight.Brightness = 8
+    transitionLight.Range = 12
+    transitionLight.Color = Color3.fromRGB(255, 255, 150)
+    transitionLight.Parent = transitionEffect
+    
+    -- Animação de teletransporte
+    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(transitionEffect, tweenInfo, {Size = Vector3.new(15, 15, 15), Transparency = 0.8})
+    tween:Play()
+    
+    -- Teletransportar jogador para as backrooms
+    humanoidRootPart.CFrame = CFrame.new(spawnPosition)
+    
+    -- Remover efeito após 1 segundo
+    game:GetService("Debris"):AddItem(transitionEffect, 1)
+    
+    -- Ativar o monstro após 3 segundos
+    task.wait(3)
+    ActivateMonster(player)
+    
+    return true
+end
+
+local function RestoreNormalWorld()
+    -- Desativar monstro
+    DeactivateMonster()
+    
+    -- Remover backrooms
+    local backroomsFolder = workspace:FindFirstChild("ItoshiHub_Backrooms")
+    if backroomsFolder then
+        backroomsFolder:Destroy()
+    end
+    
+    -- Restaurar configurações de iluminação originais
+    local lighting = game:GetService("Lighting")
+    lighting.Brightness = 2
+    lighting.Ambient = Color3.fromRGB(128, 128, 128)
+    lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+    lighting.FogColor = Color3.fromRGB(191, 191, 191)
+    lighting.FogEnd = 100000
+    lighting.FogStart = 0
+end
+
+-- Função para enviar comandos
+local function SendCommand(msg)
+    local tcs = game:GetService("TextChatService")
+    if tcs.ChatVersion == Enum.ChatVersion.TextChatService then
+        local channel = tcs.TextChannels.RBXGeneral
+        if channel then
+            channel:SendAsync(msg)
+        end
+    else
+        game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(msg, "All")
+    end
+end
+
+-- ===== CARREGAR WINDUI =====
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+-- ===== CRIAR JANELA =====
+local Window = WindUI:CreateWindow({
+    Title = "Itoshi Hub",
+    Icon = "terminal",
+    Author = "By Sae",
+    Folder = "ItoshiHub",
+    Size = UDim2.fromOffset(330, 240),
+    Transparent = true,
+    Theme = "Red",
+    Resizable = true,
+    SideBarWidth = 200,
+    Background = "728316102835",
+    BackgroundImageTransparency = 0.10,
+    HideSearchBar = true,
+    ScrollBarEnabled = false
+})
+
+Window:EditOpenButton({
+    Title = "Itoshi Hub",
+    Icon = "terminal",
+    CornerRadius = UDim.new(0,16),
+    StrokeThickness = 2,
+    Color = ColorSequence.new(
+        Color3.fromHex("FF0000"),  -- Vermelho
+        Color3.fromHex("CC0000")   -- Vermelho mais escuro
+    ),
+    OnlyMobile = false,
+    Enabled = true,
+    Draggable = true,
+})
+
+-- ===== ABA COMANDOS =====
+local CommandsTab = Window:Tab({
+    Title = "Comandos",
+    Icon = "terminal",
+    Locked = false,
+})
+
+-- Preencher lista de jogadores
+for _, plr in ipairs(Players:GetPlayers()) do
+    table.insert(playerNames, plr.Name)
+end
+
+-- Dropdown de seleção
+local Dropdown = CommandsTab:Dropdown({
+    Title = "Selecionar Jogadores",
+    Values = playerNames,
+    Value = {},
+    Multi = true,
+    AllowNone = true,
+    Callback = function(newSelectedPlayers)
+        selectedPlayers = newSelectedPlayers
+    end
+})
+
+-- Atualizar lista de jogadores
+Players.PlayerAdded:Connect(function(plr)
+    table.insert(playerNames, plr.Name)
+    Dropdown:SetValues(playerNames)
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+    for i, name in ipairs(playerNames) do
+        if name == plr.Name then
+            table.remove(playerNames, i)
+            break
+        end
+    end
+    Dropdown:SetValues(playerNames)
+end)
+
+-- ===== BOTÕES SOLTOS =====
+
+-- Verifique
+CommandsTab:Button({
+    Title = "Verifique",
+    Icon = "check",
+    Callback = function()
+        SendCommand(";verifique")
+        WindUI:Notify("Verificação", "Comando ;verifique enviado!")
+    end
+})
+
+-- Kill
+CommandsTab:Button({
+    Title = "Kill",
+    Icon = "skull",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                SendCommand(";kill " .. playerName)
+            end
+            WindUI:Notify("Kill", "Comando executado em " .. #selectedPlayers .. " jogador(es)!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- Kick
+CommandsTab:Button({
+    Title = "Kick", 
+    Icon = "door-open",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                SendCommand(";kick " .. playerName)
+            end
+            WindUI:Notify("Kick", "Comando executado em " .. #selectedPlayers .. " jogador(es)!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- Crash
+CommandsTab:Button({
+    Title = "Crash",
+    Icon = "alert-triangle", 
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                SendCommand(";crash " .. playerName)
+            end
+            WindUI:Notify("Crash", "Comando executado em " .. #selectedPlayers .. " jogador(es)!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- BRING CORRIGIDO
+CommandsTab:Button({
+    Title = "🎯 BRING",
+    Icon = "move",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                local player = Players:FindFirstChild(playerName)
+                if player then
+                    bringPlayer(player)
+                end
+            end
+            WindUI:Notify("BRING", "🎯 Puxando " .. #selectedPlayers .. " jogador(es) para você!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- Fling
+CommandsTab:Button({
+    Title = "🚀 FLING",
+    Icon = "rocket",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                SendCommand(";fling " .. playerName)
+            end
+            WindUI:Notify("FLING", "🚀 Jogando " .. #selectedPlayers .. " jogador(es) pro VOID!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- Freeze
+CommandsTab:Button({
+    Title = "⛄ FREEZE",
+    Icon = "snowflake",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                SendCommand(";freeze " .. playerName)
+            end
+            WindUI:Notify("FREEZE", "⛄ Congelando " .. #selectedPlayers .. " jogador(es)!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- Unfreeze
+CommandsTab:Button({
+    Title = "🔥 UNFREEZE",
+    Icon = "flame",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                SendCommand(";unfreeze " .. playerName)
+            end
+            WindUI:Notify("UNFREEZE", "🔥 Descongelando " .. #selectedPlayers .. " jogador(es)!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- Rotate
+CommandsTab:Button({
+    Title = "🌐 ROTATE",
+    Icon = "refresh-cw",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                local player = Players:FindFirstChild(playerName)
+                if player then
+                    startRotatePlayer(player)
+                end
+            end
+            WindUI:Notify("ROTATE", "🌐 Rotacionando " .. #selectedPlayers .. " jogador(es) pelo mapa!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- Unrotate
+CommandsTab:Button({
+    Title = "⏹️ UNROTATE",
+    Icon = "square",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                local player = Players:FindFirstChild(playerName)
+                if player then
+                    stopRotatePlayer(player)
+                end
+            end
+            WindUI:Notify("UNROTATE", "⏹️ Parando rotação de " .. #selectedPlayers .. " jogador(es)!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- Jail
+CommandsTab:Button({
+    Title = "⛓️ JAIL",
+    Icon = "lock",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                SendCommand(";jail " .. playerName)
+            end
+            WindUI:Notify("JAIL", "⛓️ Prendendo " .. #selectedPlayers .. " jogador(es)!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- Unjail
+CommandsTab:Button({
+    Title = "⛓️ UNJAIL",
+    Icon = "unlock",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                SendCommand(";unjail " .. playerName)
+            end
+            WindUI:Notify("UNJAIL", "⛓️ Soltando " .. #selectedPlayers .. " jogador(es)!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- Explodir
+CommandsTab:Button({
+    Title = "💣 EXPLODIR",
+    Icon = "bomb",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                SendCommand(";explodir " .. playerName)
+            end
+            WindUI:Notify("EXPLOSÃO", "💣 BOOM! Comando executado em " .. #selectedPlayers .. " jogador(es)!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- Backrooms COMPLETO
+CommandsTab:Button({
+    Title = "🚪 BACKROOMS",
+    Icon = "door-open",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                local player = Players:FindFirstChild(playerName)
+                if player then
+                    TeleportToBackrooms(player)
+                end
+            end
+            WindUI:Notify("BACKROOMS", "🚪 Enviando " .. #selectedPlayers .. " jogador(es) para as Backrooms! CUIDADO COM O MONSTRO! 👾")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- Unbackrooms COMPLETO
+CommandsTab:Button({
+    Title = "🏠 VOLTAR DO BACKROOMS",
+    Icon = "home",
+    Callback = function()
+        if #selectedPlayers > 0 then
+            for _, playerName in ipairs(selectedPlayers) do
+                local player = Players:FindFirstChild(playerName)
+                if player then
+                    RestoreNormalWorld()
+                end
+            end
+            WindUI:Notify("BACKROOMS", "🏠 Retornando " .. #selectedPlayers .. " jogador(es) do Backrooms!")
+        else
+            WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+        end
+    end
+})
+
+-- Jumpscares
+for _, jumpscare in ipairs(JUMPSCARES) do
+    CommandsTab:Button({
+        Title = jumpscare.Name,
+        Icon = "alert-triangle",
+        Callback = function()
+            if #selectedPlayers > 0 then
+                for _, playerName in ipairs(selectedPlayers) do
+                    SendCommand(jumpscare.Name .. " " .. playerName)
+                end
+                WindUI:Notify("Jumpscare", jumpscare.Name .. " enviado para " .. #selectedPlayers .. " jogador(es)!")
+            else
+                WindUI:Notify("Erro", "❌ Selecione jogadores primeiro!")
+            end
+        end
+    })
+end
+
+-- Tags
+CommandsTab:Button({
+    Title = "👷 ATIVAR TODAS TAGS",
+    Icon = "eye",
+    Callback = function()
+        tagsVisiveis = true
+        SendCommand(";tag all")
+        WindUI:Notify("Tags", "👷 Todas as tags foram ativadas!")
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            applyTag(player)
+        end
+    end
+})
+
+CommandsTab:Button({
+    Title = "🚫 REMOVER TODAS TAGS",
+    Icon = "eye-off",
+    Callback = function()
+        tagsVisiveis = false
+        SendCommand(";untag all")
+        WindUI:Notify("Tags", "🚫 Todas as tags foram removidas!")
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            removeTag(player)
+        end
+    end
+})
+
+CommandsTab:Button({
+    Title = "👤 ATIVAR MINHA TAG",
+    Icon = "user",
+    Callback = function()
+        tagsVisiveis = true
+        SendCommand(";tag")
+        WindUI:Notify("Tags", "👤 Sua tag foi ativada!")
+        applyTag(LocalPlayer)
+    end
+})
+
+CommandsTab:Button({
+    Title = "🙈 REMOVER MINHA TAG",
+    Icon = "user-x",
+    Callback = function()
+        SendCommand(";untag")
+        WindUI:Notify("Tags", "🙈 Sua tag foi removida!")
+        removeTag(LocalPlayer)
+    end
+})
+
+-- ===== SISTEMA DE COMANDOS =====
+local function ProcessarComando(mensagem)
+    if string.sub(mensagem, 1, 1) == ";" then
+        local partes = string.split(string.sub(mensagem, 2), " ")
+        local comando = partes[1]:lower()
+        local nomeAlvo = table.concat(partes, " ", 2)
+        
+        local isSelfTarget = nomeAlvo and (nomeAlvo:lower() == LocalPlayer.Name:lower() or nomeAlvo:lower() == LocalPlayer.DisplayName:lower())
+        local playerName = LocalPlayer.Name
+        local character = LocalPlayer.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+        
+        if isSelfTarget then
+            print("🎯 Comando recebido: " .. comando .. " para " .. LocalPlayer.Name)
+            
+            -- Comandos de Tags
+            if comando == "untag" then
+                tagsVisiveis = false
+                removeTag(LocalPlayer)
+                return
+            end
+
+            if comando == "tag" then
+                tagsVisiveis = true
+                applyTag(LocalPlayer)
+                return
+            end
+
+            -- Freeze  
+            if comando == "freeze" then  
+                if humanoid then  
+                    playerOriginalSpeed[playerName] = humanoid.WalkSpeed  
+                    humanoid.WalkSpeed = 0  
+                end  
+                return  
+            end  
+
+            -- Unfreeze  
+            if comando == "unfreeze" then  
+                if humanoid then  
+                    humanoid.WalkSpeed = playerOriginalSpeed[playerName] or 16  
+                    playerOriginalSpeed[playerName] = nil  
+                end  
+                return  
+            end
+
+            -- Rotate
+            if comando == "rotate" then
+                if character then
+                    startRotatePlayer(LocalPlayer)
+                end
+                return
+            end
+
+            -- Unrotate
+            if comando == "unrotate" then
+                if character then
+                    stopRotatePlayer(LocalPlayer)
+                end
+                return
+            end
+
+            -- Jail  
+            if comando == "jail" then  
+                if character then  
+                    local root = character:FindFirstChild("HumanoidRootPart")  
+                    local humanoid = character:FindFirstChildOfClass("Humanoid")  
+                    if root and humanoid then  
+                        playerOriginalSpeed[playerName] = humanoid.WalkSpeed  
+                        humanoid.WalkSpeed = 0  
+
+                        local size = 12
+                        local pos = root.Position  
+                        jaulas[playerName] = {}  
+                        
+                        local function criarBarra(cframe, size, color)
+                            local p = Instance.new("Part")
+                            p.Name = "ItoshiHubJailBar"
+                            p.Size = size
+                            p.Anchored = true
+                            p.CanCollide = true
+                            p.Material = Enum.Material.Neon
+                            p.BrickColor = color
+                            p.Reflectance = 0.2
+                            p.CFrame = cframe
+                            p.Parent = workspace
+                            
+                            local pointLight = Instance.new("PointLight")
+                            pointLight.Brightness = 3
+                            pointLight.Range = 8
+                            pointLight.Color = color == BrickColor.new("Really black") and Color3.new(0, 0, 0) or Color3.new(1, 0, 0)  -- Vermelho
+                            pointLight.Parent = p
+                            
+                            table.insert(jaulas[playerName], p)
+                            return p
+                        end
+
+                        criarBarra(CFrame.new(pos + Vector3.new(size/2, 0, size/2)), Vector3.new(0.8, size, 0.8), BrickColor.new("Really black"))
+                        criarBarra(CFrame.new(pos + Vector3.new(-size/2, 0, size/2)), Vector3.new(0.8, size, 0.8), BrickColor.new("Really black"))
+                        criarBarra(CFrame.new(pos + Vector3.new(size/2, 0, -size/2)), Vector3.new(0.8, size, 0.8), BrickColor.new("Really black"))
+                        criarBarra(CFrame.new(pos + Vector3.new(-size/2, 0, -size/2)), Vector3.new(0.8, size, 0.8), BrickColor.new("Really black"))
+
+                        criarBarra(CFrame.new(pos + Vector3.new(0, size/2, size/2)), Vector3.new(size, 0.8, 0.8), BrickColor.new("Bright red"))
+                        criarBarra(CFrame.new(pos + Vector3.new(0, size/2, -size/2)), Vector3.new(size, 0.8, 0.8), BrickColor.new("Bright red"))
+                        criarBarra(CFrame.new(pos + Vector3.new(size/2, size/2, 0)), Vector3.new(0.8, 0.8, size), BrickColor.new("Bright red"))
+                        criarBarra(CFrame.new(pos + Vector3.new(-size/2, size/2, 0)), Vector3.new(0.8, 0.8, size), BrickColor.new("Bright red"))
+
+                        criarBarra(CFrame.new(pos + Vector3.new(0, -size/2, size/2)), Vector3.new(size, 0.8, 0.8), BrickColor.new("Bright red"))
+                        criarBarra(CFrame.new(pos + Vector3.new(0, -size/2, -size/2)), Vector3.new(size, 0.8, 0.8), BrickColor.new("Bright red"))
+                        criarBarra(CFrame.new(pos + Vector3.new(size/2, -size/2, 0)), Vector3.new(0.8, 0.8, size), BrickColor.new("Bright red"))
+                        criarBarra(CFrame.new(pos + Vector3.new(-size/2, -size/2, 0)), Vector3.new(0.8, 0.8, size), BrickColor.new("Bright red"))
+
+                        if jailConnections[playerName] then  
+                            jailConnections[playerName]:Disconnect()  
+                        end  
+                          
+                        jailConnections[playerName] = RunService.Heartbeat:Connect(function()  
+                            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then  
+                                local hrp = LocalPlayer.Character.HumanoidRootPart  
+                                local center = pos + Vector3.new(0, 0, 0)  
+                                if (hrp.Position - center).Magnitude > size/2 - 1 then  
+                                    hrp.CFrame = CFrame.new(center)  
+                                end  
+                            end  
+                        end)  
+                    end  
+                end  
+                return  
+            end  
+
+            -- Unjail  
+            if comando == "unjail" then  
+                if character then  
+                    local humanoid = character:FindFirstChildOfClass("Humanoid")  
+                    if humanoid then  
+                        humanoid.WalkSpeed = playerOriginalSpeed[playerName] or 16  
+                        playerOriginalSpeed[playerName] = nil  
+                    end  
+
+                    if jaulas[playerName] then  
+                        for _, p in ipairs(jaulas[playerName]) do  
+                            if p and p.Parent then  
+                                p:Destroy()  
+                            end  
+                        end  
+                        jaulas[playerName] = nil  
+                    end  
+
+                    if jailConnections[playerName] then  
+                        jailConnections[playerName]:Disconnect()  
+                        jailConnections[playerName] = nil  
+                    end  
+                end  
+                return  
+            end
+
+            -- Backrooms COMPLETO
+            if comando == "backrooms" then
+                TeleportToBackrooms(LocalPlayer)
+                return
+            end
+
+            -- Unbackrooms COMPLETO
+            if comando == "unbackrooms" then
+                RestoreNormalWorld()
+                return
+            end
+
+            -- Sistema de Jumpscares
+            if comando == "jumps1" then
+                TriggerJumpscare(LocalPlayer, JUMPSCARES[1])
+            elseif comando == "jumps2" then
+                TriggerJumpscare(LocalPlayer, JUMPSCARES[2])
+            elseif comando == "jumps3" then
+                TriggerJumpscare(LocalPlayer, JUMPSCARES[3])
+            elseif comando == "jumps4" then
+                TriggerJumpscare(LocalPlayer, JUMPSCARES[4])
+            
+            -- Comandos anteriores
+            elseif comando == "kill" and character then
+                character:BreakJoints()
+            elseif comando == "kick" then
+                LocalPlayer:Kick("🚫 Você foi banido por um admin do Itoshi Hub")
+            elseif comando == "crash" then
+                while true do end
+            elseif comando == "explodir" and character then
+                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                
+                if humanoidRootPart then
+                    local explosion = Instance.new("Part")
+                    explosion.Name = "ItoshiHubExplosion"
+                    explosion.Size = Vector3.new(8, 8, 8)
+                    explosion.Shape = Enum.PartType.Ball
+                    explosion.Material = Enum.Material.Neon
+                    explosion.BrickColor = BrickColor.new("Bright red")  -- Vermelho
+                    explosion.Position = humanoidRootPart.Position
+                    explosion.Anchored = true
+                    explosion.CanCollide = false
+                    explosion.Parent = workspace
+                    
+                    local pointLight = Instance.new("PointLight")
+                    pointLight.Brightness = 10
+                    pointLight.Range = 15
+                    pointLight.Color = Color3.new(1, 0, 0)  -- Vermelho
+                    pointLight.Parent = explosion
+                    
+                    character:BreakJoints()
+                    
+                    for _, part in pairs(character:GetDescendants()) do
+                        if part:IsA("BasePart") and part ~= humanoidRootPart then
+                            part.Velocity = Vector3.new(
+                                math.random(-50, 50),
+                                math.random(30, 60), 
+                                math.random(-50, 50)
+                            )
+                        end
+                    end
+                    
+                    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                    local tween = TweenService:Create(explosion, tweenInfo, {Size = Vector3.new(20, 20, 20)})
+                    tween:Play()
+                    
+                    game:GetService("Debris"):AddItem(explosion, 2)
+                end
+            elseif comando == "fling" and character then
+                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                
+                if humanoidRootPart then
+                    local flash = Instance.new("Part")
+                    flash.Name = "ItoshiHubFlingFlash"
+                    flash.Size = Vector3.new(15, 15, 15)
+                    flash.Shape = Enum.PartType.Ball
+                    flash.Material = Enum.Material.Neon
+                    flash.BrickColor = BrickColor.new("Bright red")  -- Vermelho
+                    flash.Position = humanoidRootPart.Position
+                    flash.Anchored = true
+                    flash.CanCollide = false
+                    flash.Parent = workspace
+                    
+                    local flashLight = Instance.new("PointLight")
+                    flashLight.Brightness = 15
+                    flashLight.Range = 20
+                    flashLight.Color = Color3.new(1, 0, 0)  -- Vermelho
+                    flashLight.Parent = flash
+                    
+                    wait(0.5)
+                    
+                    humanoidRootPart.Velocity = Vector3.new(
+                        math.random(-999999, 999999),
+                        math.random(500000, 999999),
+                        math.random(-999999, 999999)
+                    )
+                    
+                    game:GetService("Debris"):AddItem(flash, 1)
+                end
+            end
+        end
+        
+        -- Comandos de Tags Globais
+        if comando == "untag" and nomeAlvo == "all" then
+            tagsVisiveis = false
+            for _, player in ipairs(Players:GetPlayers()) do
+                removeTag(player)
+            end
+            return
+        end
+
+        if comando == "tag" and nomeAlvo == "all" then
+            tagsVisiveis = true
+            for _, player in ipairs(Players:GetPlayers()) do
+                applyTag(player)
+            end
+            return
+        end
+        
+        -- Comando verifique
+        if comando == "verifique" then
+            task.wait(2)
+            SendCommand("Itoshi_Users")
+        end
+    end
+end
+
+-- Aplicar tag inicial
+for _, p in ipairs(Players:GetPlayers()) do
+    applyTag(p)
+end
+
+Players.PlayerAdded:Connect(function(p)
+    applyTag(p)
+end)
+
+-- Limpar rotate quando jogador sair
+Players.PlayerRemoving:Connect(function(plr)
+    stopRotatePlayer(plr)
+end)
+
+-- Conectar ao chat
+task.spawn(function()
+    wait(3)
+    local canal = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+    if canal then
+        canal.OnIncomingMessage = function(mensagem)
+            ProcessarComando(mensagem.Text)
+        end
+    end
+end)
+
+-- ===== INICIALIZAR =====
+verifyWhitelistOnStart()
+WindUI:Notify("Itoshi Hub", "Sistema carregado com sucesso! ✅")
+
+print("🎯 ITOSHI HUB - SISTEMA FUNCIONANDO!")
+print("👤 Desenvolvido por: Sae")
+print("🎯 BRING CORRIGIDO - Agora puxa jogadores até você")
+print("👷 SISTEMA DE TAGS FUNCIONAL")
+print("🚪 BACKROOMS COMPLETO - Com monstro perseguidor funcionando!")
+print("⚡ WHITELIST COMPLETA ATIVADA")
+print("✨ TODOS OS COMANDOS PRONTOS!")
